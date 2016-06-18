@@ -1,9 +1,7 @@
 .PHONY: test test_xprs
 
 test: test_xprs
-	echo "Hi."
 
-test_xprs:
-	iverilog bench/verilog/xprs.v
+test_xprs: bench/verilog/xprs.v rtl/verilog/xprs.v
+	iverilog bench/verilog/xprs.v rtl/verilog/xprs.v
 	vvp -n a.out
-
