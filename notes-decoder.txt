@@ -1,0 +1,17 @@
+LUI		0110111		Rd := 0 + imm20
+AUIPC		0010111		Rd := IP + imm20
+JAL		1101111		Rd := IP + 4; PC := disp21 + IP; flushPipe
+JALR		1100111		Rd := IP + 4; PC := Rs1 + imm12; flushPipe
+Bcc		1100011		IF Rs1 .op. Rs2 THEN PC := IP + disp13; flushPipe THEN
+Lx		0000011		Rd := MEMx(Rs1+imm12)
+Sx		0100011		MEMx(Rs1+imm12) := Rd
+aluI		0010011		Rd := Rs1 .op. imm12
+alu		0110011		Rd := Rs1 .op. Rs2
+FENCE		0001111		(no operation)
+FENCE.I		0001111		(no operation)
+ECALL/EBREAK	1110011.000	CSR[EPC] := IP + 4; PC := CSR[MTVEC]; stack state
+CSRRx		1110011.0xx	(needs more thought)
+CSRRxI		1110011.1xx	(reuse logic from CSRRx)
+
+I find it really hard to believe that there is only 14 distinct classes of instructions I need to support.  I mean, the Func3 fields are not taken into consideration, but they can be combinatorially decoded in parallel and dealt with.  These are the _major_, true, x86-style "instructions" instructions.
+
