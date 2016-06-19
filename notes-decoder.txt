@@ -1,16 +1,38 @@
- LUI		0110111		Rd := 0 + imm20
- AUIPC		0010111		Rd := IP + imm20
- JAL		1101111		Rd := IP + 4; PC := disp21 + IP; flushPipe
- JALR		1100111		Rd := IP + 4; PC := Rs1 + imm12; flushPipe
- Bcc		1100011.ccc	IF Rs1 .op. Rs2 THEN PC := IP + disp13; flushPipe THEN
- Lx		0000011.xxx	Rd := MEMx(Rs1+imm12)
- Sx		0100011.xxx	MEMx(Rs1+imm12) := Rd
- aluI		0010011.fff	Rd := Rs1 .op. imm12
+LUI		0110111		Rd := 0 + imm20
+AUIPC		0010111		Rd := IP + imm20
+JAL		1101111		Rd := IP + 4; PC := disp21 + IP; flushPipe
+JALR		1100111		Rd := IP + 4; PC := Rs1 + imm12; flushPipe
+Bcc		1100011.ccc	IF Rs1 .op. Rs2 THEN PC := IP + disp13; flushPipe THEN
+Lx		0000011.xxx	Rd := MEMx(Rs1+imm12)
+Sx		0100011.xxx	MEMx(Rs1+imm12) := Rd
+aluI		0010011.fff	Rd := Rs1 .op. imm12
 alu		0110011.fff	Rd := Rs1 .op. Rs2
- FENCE		0001111		(no operation)
- FENCE.I	0001111		(no operation)
- CSRRx		1110011.0xx	(needs more thought; xx != 0)
- CSRRxI		1110011.1xx	(reuse logic from CSRRx; xx != 0)
+FENCE		0001111		(no operation)
+FENCE.I		0001111		(no operation)
+CSRRx		1110011.0xx	(needs more thought; xx != 0)
+CSRRxI		1110011.1xx	(reuse logic from CSRRx; xx != 0)
 
 I find it really hard to believe that there is only 13 distinct classes of instructions I need to support in user-mode, 11 of which are actually useful for me.  I mean, the Func3 fields are not taken into consideration, but they can be combinatorially decoded in parallel and dealt with.  But, then again, I suppose that's the value of RISC over CISC.  See also Data General Nova architecture, which only had something like 4 or 6 actual instructions; the rest were simple tweaks on the theme.
+
+
+MNEMONIC	OPCODE		destWB	dstSrc	srcA	srcB	aluOp	loadPC	displacement	base	CYC	MemWE	csrWE
+LUI		0110111		Yes	alu	0	imm20	ADD	No	0		IP	No	No	No
+AUIPC		0010111		Yes	alu	IP	imm20	ADD	No	0		IP	No	No	No
+JAL		1101111		Yes	alu	IP	4	ADD	Yes	disp21		IP	No	No	No
+JALR		1100111		Yes	alu	IP	4	ADD	Yes	imm12		Rs1	No	No	No
+Bcc		1100011.ccc	No	alu	Rs1	Rs2	CMP(cc)	ifTrue	disp13		IP	No	No	No
+Lx		0000011.xxx	Yes	mem	Rs1	imm12	ADD	No	0		IP	Yes	No	No
+Sx		0100011.0xx	No	alu	Rs1	imm12	ADD	No	0		IP	Yes	Yes	No
+aluI		0010011.fff	Yes	alu	Rs1	imm12	fn3	No	0		IP	No	No	No
+alu		0110011.fff	Yes	alu	Rs1	Rs2	fn3	No	0		IP	No	No	No
+FENCE		0001111		No	alu	Rs1	Rs2	fn3	No	0		IP	No	No	No
+CSRRW		1110011.001	Yes*	srcB	Rs1	csr	srcA	No	0		IP	No	No	Yes+
+CSRRS		1110011.010	Yes*	srcB	Rs1	csr	OR	No	0		IP	No	No	Yes+
+CSRRC		1110011.011	Yes*	srcB	Rs1	csr	BIC	No	0		IP	No	No	Yes+
+CSRRWI		1110011.101	Yes*	srcB	imm5	csr	srcA	No	0		IP	No	No	Yes
+CSRRSI		1110011.110	Yes*	srcB	imm5	csr	OR	No	0		IP	No	No	Yes
+CSRRCI		1110011.111	Yes*	srcB	imm5	csr	BIC	No	0		IP	No	No	Yes
+
+* If, and only if, Rd != X0.
++ If, and only if, Rs1 != X0.
 
