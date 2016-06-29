@@ -21,6 +21,7 @@ module stage_d(
 	output	[4:0]	d_rd_o,		// Destination register for eventual write-back, or 0.
 	output	[3:0]	d_alu_o,	// ALU operation.  If none, ADD if usually a safe default.
 	output	[3:0]	d_mem_o,	// 0, 1, 2, 4, or 8.  0 for no memory access, otherwise indicates data width.
+	output		d_signed_o,	// 0 if unsigned load; 1 if signed load; undefined otherwise.
 
 	// W-stage I/O
 	input	[63:0]	w_dat1_i,	// Contents of register 1 from register file (W for writeback stage)
@@ -90,6 +91,7 @@ module stage_d(
 		endcase
 	end
 	wire force_add = is_load;
+	wire d_signed_o = ~fn3[2];
 endmodule
 
 // This module exercises the instruction decode functionality, as viewed by both the instruction fetch logic and the execute logic.
@@ -111,6 +113,7 @@ module test_stage_d();
 	wire [63:0] vs2_i;		// Contents of register Rs2 or immediate, as appropriate
 	wire [3:0] d_alu_i;
 	wire [3:0] d_mem_i;
+	wire d_signed_i;
 
 	stage_d d(
 		.clk_i(clk_o),
@@ -125,7 +128,8 @@ module test_stage_d();
 		.d_vs1_o(vs1_i),
 		.d_vs2_o(vs2_i),
 		.d_alu_o(d_alu_i),
-		.d_mem_o(d_mem_i)
+		.d_mem_o(d_mem_i),
+		.d_signed_o(d_signed_i)
 	);
 
 	// 50MHz clock.
@@ -208,6 +212,16 @@ module test_stage_d();
 	begin
 		if(d_mem_i !== expected) begin
 			$display("@E %04X Expected mem %d; got %d.", story_o, expected, d_mem_i);
+			$stop;
+		end
+	end
+	endtask
+
+	task assert_signed;
+	input expected;
+	begin
+		if(d_signed_i !== expected) begin
+			$display("@E %04X Expected signed memory load flag %d; got %d.", story_o, expected, d_signed_i);
 			$stop;
 		end
 	end
@@ -513,6 +527,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_ADD);
 		assert_mem(1);
+		assert_signed(1);
 
 		// When executing LH X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -526,6 +541,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_ADD);
 		assert_mem(2);
+		assert_signed(1);
 
 		// When executing LW X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -539,6 +555,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_ADD);
 		assert_mem(4);
+		assert_signed(1);
 
 		// When executing LD X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -552,6 +569,63 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_ADD);
 		assert_mem(8);
+		assert_signed(1);
+
+		// When executing LBU X2, 4(X3), we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value 4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b000000000100_00011_100_00010_0000011;
+		tick(16'h0440);
+		assert_rs1(3);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(4);
+		assert_rd(2);
+		assert_alu_fn(`ALU_ADD);
+		assert_mem(1);
+		assert_signed(0);
+
+		// When executing LHU X2, 4(X3), we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value 4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b000000000100_00011_101_00010_0000011;
+		tick(16'h0450);
+		assert_rs1(3);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(4);
+		assert_rd(2);
+		assert_alu_fn(`ALU_ADD);
+		assert_mem(2);
+		assert_signed(0);
+
+		// When executing LWU X2, 4(X3), we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value 4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b000000000100_00011_110_00010_0000011;
+		tick(16'h0460);
+		assert_rs1(3);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(4);
+		assert_rd(2);
+		assert_alu_fn(`ALU_ADD);
+		assert_mem(4);
+		assert_signed(0);
+
+		// When executing LDU X2, 4(X3), we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value 4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b000000000100_00011_111_00010_0000011;
+		tick(16'h0470);
+		assert_rs1(3);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(4);
+		assert_rd(2);
+		assert_alu_fn(`ALU_ADD);
+		assert_mem(8);
+		assert_signed(0);
 
 		$display("@I Done.");
 		$stop;
