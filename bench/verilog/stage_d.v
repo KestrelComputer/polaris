@@ -20,7 +20,7 @@ module stage_d(
 	output	[63:0]	d_vs2_o,	// Contents of 2nd operand (register or immediate as appropriate)
 	output	[4:0]	d_rd_o,		// Destination register for eventual write-back, or 0.
 	output	[3:0]	d_alu_o,	// ALU operation.  If none, ADD if usually a safe default.
-	output		d_mem_o,	// This instruction touches memory if asserted.
+	output	[3:0]	d_mem_o,	// 0, 1, 2, 4, or 8.  0 for no memory access, otherwise indicates data width.
 
 	// W-stage I/O
 	input	[63:0]	w_dat1_i,	// Contents of register 1 from register file (W for writeback stage)
@@ -44,7 +44,7 @@ module stage_d(
 	assign w_rs1_o = ir[19:15];
 	assign w_rs2_o = ir[24:20];
 	wire fn4sign = ~is_aluI ? ir[30] : isShift ? ir[30] : 0;
-	wire [3:0] d_alu_o = {fn4sign, fn3};
+	wire [3:0] d_alu_o = force_add ? `ALU_ADD : {fn4sign, fn3};
 
 	// These are all the different kinds of immediate operands RISC-V supports.
 	wire [63:0] imm12i = {{52{ir[31]}}, ir[31:20]};		// 12-bit signed (I, non-shifts)
@@ -57,15 +57,39 @@ module stage_d(
 
 	// Steer data to the second ALU input for the execute stage.
 
+	wire is_load = opcode == 7'b0000011;
 	wire is_aluI = opcode == 7'b0010011;
 	wire is_alu = opcode == 7'b0110011;
 	wire isShift = (fn3 == 3'b001) | (fn3 == 3'b101);
 
+	wire is_I = is_load | (is_aluI & ~isShift);
+
+	assign d_vs2_o = (is_aluI & isShift) ? imm6sh : (is_alu) ? w_dat2_i : imm12i;
+
 	// Control signal for M-stage.  1 if memory accoess; 0 otherwise.
 
-	wire d_mem_o = 0;
-
-	assign d_vs2_o = (is_aluI & ~isShift)? imm12i : (is_aluI & isShift) ? imm6sh : (is_alu) ? w_dat2_i : imm12i;
+	reg [3:0] d_mem_o;
+	always @(*) begin
+		case({is_load, fn3})
+		4'b0000: d_mem_o <= 0;
+		4'b0001: d_mem_o <= 0;
+		4'b0010: d_mem_o <= 0;
+		4'b0011: d_mem_o <= 0;
+		4'b0100: d_mem_o <= 0;
+		4'b0101: d_mem_o <= 0;
+		4'b0110: d_mem_o <= 0;
+		4'b0111: d_mem_o <= 0;
+		4'b1000: d_mem_o <= 4'b0001;
+		4'b1001: d_mem_o <= 4'b0010;
+		4'b1010: d_mem_o <= 4'b0100;
+		4'b1011: d_mem_o <= 4'b1000;
+		4'b1100: d_mem_o <= 4'b0001;
+		4'b1101: d_mem_o <= 4'b0010;
+		4'b1110: d_mem_o <= 4'b0100;
+		4'b1111: d_mem_o <= 4'b1000;
+		endcase
+	end
+	wire force_add = is_load;
 endmodule
 
 // This module exercises the instruction decode functionality, as viewed by both the instruction fetch logic and the execute logic.
@@ -86,7 +110,7 @@ module test_stage_d();
 	wire [63:0] vs1_i;		// Contents of register Rs1 or immediate, as appropriate
 	wire [63:0] vs2_i;		// Contents of register Rs2 or immediate, as appropriate
 	wire [3:0] d_alu_i;
-	wire d_mem_i;
+	wire [3:0] d_mem_i;
 
 	stage_d d(
 		.clk_i(clk_o),
@@ -180,7 +204,7 @@ module test_stage_d();
 	endtask
 
 	task assert_mem;
-	input expected;
+	input [3:0] expected;
 	begin
 		if(d_mem_i !== expected) begin
 			$display("@E %04X Expected mem %d; got %d.", story_o, expected, d_mem_i);
@@ -476,6 +500,58 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_AND);
 		assert_mem(0);
+
+		// When executing LB X2, 4(X3), we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value 4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b000000000100_00011_000_00010_0000011;
+		tick(16'h0400);
+		assert_rs1(3);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(4);
+		assert_rd(2);
+		assert_alu_fn(`ALU_ADD);
+		assert_mem(1);
+
+		// When executing LH X2, 4(X3), we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value 4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b000000000100_00011_001_00010_0000011;
+		tick(16'h0410);
+		assert_rs1(3);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(4);
+		assert_rd(2);
+		assert_alu_fn(`ALU_ADD);
+		assert_mem(2);
+
+		// When executing LW X2, 4(X3), we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value 4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b000000000100_00011_010_00010_0000011;
+		tick(16'h0420);
+		assert_rs1(3);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(4);
+		assert_rd(2);
+		assert_alu_fn(`ALU_ADD);
+		assert_mem(4);
+
+		// When executing LD X2, 4(X3), we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value 4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b000000000100_00011_011_00010_0000011;
+		tick(16'h0430);
+		assert_rs1(3);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(4);
+		assert_rd(2);
+		assert_alu_fn(`ALU_ADD);
+		assert_mem(8);
 
 		$display("@I Done.");
 		$stop;
