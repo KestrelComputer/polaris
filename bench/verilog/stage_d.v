@@ -284,7 +284,6 @@ module test_stage_d();
 
 		// When executing SLLI X2, X3, 4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be 4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b000000000100_00011_001_00010_0010011;
 		tick(16'h0210);
 		assert_vs2(4);
@@ -296,7 +295,6 @@ module test_stage_d();
 
 		// When executing SLTI X2, X3, 4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be 4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b000000000100_00011_010_00010_0010011;
 		tick(16'h0220);
 		assert_vs2(4);
@@ -308,7 +306,6 @@ module test_stage_d();
 
 		// When executing SLTIU X2, X3, 4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be 4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b000000000100_00011_011_00010_0010011;
 		tick(16'h0230);
 		assert_vs2(4);
@@ -320,7 +317,6 @@ module test_stage_d();
 
 		// When executing XORI X2, X3, 4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be 4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b000000000100_00011_100_00010_0010011;
 		tick(16'h0240);
 		assert_vs2(4);
@@ -332,7 +328,6 @@ module test_stage_d();
 
 		// When executing SRLI/SRAI X2, X3, 4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be 4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b000000000100_00011_101_00010_0010011;
 		tick(16'h0250);
 		assert_vs2(4);
@@ -344,7 +339,6 @@ module test_stage_d();
 
 		// When executing SRLI/SRAI X2, X3, 4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be 4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b010000000100_00011_101_00010_0010011;
 		tick(16'h0258);
 		assert_vs2(4);
@@ -356,7 +350,6 @@ module test_stage_d();
 
 		// When executing ORI X2, X3, 4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be 4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b000000000100_00011_110_00010_0010011;
 		tick(16'h0260);
 		assert_vs2(4);
@@ -368,7 +361,6 @@ module test_stage_d();
 
 		// When executing ANDI X2, X3, 4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be 4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b000000000100_00011_111_00010_0010011;
 		tick(16'h0270);
 		assert_vs2(4);
@@ -380,7 +372,6 @@ module test_stage_d();
 
 		// When executing ADDI X2, X3, -4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be -4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b111111111100_00011_000_00010_0010011;
 		tick(16'h0280);
 		assert_vs2(-4);
@@ -393,7 +384,6 @@ module test_stage_d();
 		// When executing ADD X2, X3, X4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value of X4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b0000000_00100_00011_000_00010_0110011;
 		tick(16'h0300);
 		assert_rs1(3);
@@ -407,7 +397,6 @@ module test_stage_d();
 		// When executing SUB X2, X3, X4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value of X4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b0100000_00100_00011_000_00010_0110011;
 		tick(16'h0300);
 		assert_rs1(3);
@@ -421,7 +410,6 @@ module test_stage_d();
 		// When executing SLL X2, X3, X4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value of X4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b0000000_00100_00011_001_00010_0110011;
 		tick(16'h0310);
 		assert_rs1(3);
@@ -435,7 +423,6 @@ module test_stage_d();
 		// When executing SLT X2, X3, X4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value of X4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b0000000_00100_00011_010_00010_0110011;
 		tick(16'h0320);
 		assert_rs1(3);
@@ -449,7 +436,6 @@ module test_stage_d();
 		// When executing SLTU X2, X3, X4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value of X4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b0000000_00100_00011_011_00010_0110011;
 		tick(16'h0330);
 		assert_rs1(3);
@@ -463,7 +449,6 @@ module test_stage_d();
 		// When executing XOR X2, X3, X4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value of X4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b0000000_00100_00011_100_00010_0110011;
 		tick(16'h0340);
 		assert_rs1(3);
@@ -477,7 +462,6 @@ module test_stage_d();
 		// When executing SRL X2, X3, X4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value of X4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b0000000_00100_00011_101_00010_0110011;
 		tick(16'h0350);
 		assert_rs1(3);
@@ -491,7 +475,6 @@ module test_stage_d();
 		// When executing SRA X2, X3, X4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value of X4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b0100000_00100_00011_101_00010_0110011;
 		tick(16'h0358);
 		assert_rs1(3);
@@ -505,7 +488,6 @@ module test_stage_d();
 		// When executing OR X2, X3, X4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value of X4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b0000000_00100_00011_110_00010_0110011;
 		tick(16'h0360);
 		assert_rs1(3);
@@ -519,7 +501,6 @@ module test_stage_d();
 		// When executing AND X2, X3, X4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value of X4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b0000000_00100_00011_111_00010_0110011;
 		tick(16'h0370);
 		assert_rs1(3);
@@ -533,7 +514,6 @@ module test_stage_d();
 		// When executing LB X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value 4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b000000000100_00011_000_00010_0000011;
 		tick(16'h0400);
 		assert_rs1(3);
@@ -548,7 +528,6 @@ module test_stage_d();
 		// When executing LH X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value 4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b000000000100_00011_001_00010_0000011;
 		tick(16'h0410);
 		assert_rs1(3);
@@ -563,7 +542,6 @@ module test_stage_d();
 		// When executing LW X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value 4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b000000000100_00011_010_00010_0000011;
 		tick(16'h0420);
 		assert_rs1(3);
@@ -578,7 +556,6 @@ module test_stage_d();
 		// When executing LD X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value 4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b000000000100_00011_011_00010_0000011;
 		tick(16'h0430);
 		assert_rs1(3);
@@ -593,7 +570,6 @@ module test_stage_d();
 		// When executing LBU X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value 4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b000000000100_00011_100_00010_0000011;
 		tick(16'h0440);
 		assert_rs1(3);
@@ -608,7 +584,6 @@ module test_stage_d();
 		// When executing LHU X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value 4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b000000000100_00011_101_00010_0000011;
 		tick(16'h0450);
 		assert_rs1(3);
@@ -623,7 +598,6 @@ module test_stage_d();
 		// When executing LWU X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value 4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b000000000100_00011_110_00010_0000011;
 		tick(16'h0460);
 		assert_rs1(3);
@@ -638,7 +612,6 @@ module test_stage_d();
 		// When executing LDU X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value 4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b000000000100_00011_111_00010_0000011;
 		tick(16'h0470);
 		assert_rs1(3);
@@ -653,7 +626,6 @@ module test_stage_d();
 		// When executing SB X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value 4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b0000000_00010_00011_000_00100_0100011;
 		tick(16'h0500);
 		assert_rs1(3);
@@ -669,7 +641,6 @@ module test_stage_d();
 		// When executing SH X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value 4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b0000000_00010_00011_001_00100_0100011;
 		tick(16'h0510);
 		assert_rs1(3);
@@ -685,7 +656,6 @@ module test_stage_d();
 		// When executing SW X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value 4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b0000000_00010_00011_010_00100_0100011;
 		tick(16'h0520);
 		assert_rs1(3);
@@ -701,7 +671,6 @@ module test_stage_d();
 		// When executing SD X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value 4.
-		f_ack_o <= 1;
 		f_dat_o <= 32'b0000000_00010_00011_011_00100_0100011;
 		tick(16'h0530);
 		assert_rs1(3);
