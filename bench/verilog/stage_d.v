@@ -24,9 +24,11 @@ module stage_d(
 	input	[63:0]	w_dat1_i,	// Contents of register 1 from register file (W for writeback stage)
 	output	[4:0]	w_rs1_o
 );
+	wire isBubble = reset_i | ~f_ack_i;
+
 	reg [31:0] ir;		// Instruction register
 	always @(posedge clk_i) begin
-		ir <= (reset_i) ? 32'h00000013 : f_dat_i;
+		ir <= (isBubble) ? 32'h00000013 : f_dat_i;
 	end
 
 	assign d_rd_o = ir[11:7];
@@ -38,23 +40,10 @@ module stage_d(
 
 	wire [6:0] opcode = ir[6:0];
 	wire [2:0] fn3 = ir[14:12];
+	wire isAluI = opcode == 7'b0010011;
+	wire isAdd = fn3 == 3'b000;
 
-	reg d_add_o;
-	case(opcode)
-	7'b0010011: begin
-		case(fn3)
-		3'b000: d_add_o <= 1;
-		3'b001: d_add_o <= 0;
-		3'b010: d_add_o <= 0;
-		3'b011: d_add_o <= 0;
-		3'b100: d_add_o <= 0;
-		3'b101: d_add_o <= 0;
-		3'b110: d_add_o <= 0;
-		3'b111: d_add_o <= 0;
-		endcase
-	end
-	default: d_add_o <= 0
-	endcase
+	wire d_add_o = isAluI & isAdd;
 endmodule
 
 // This module exercises the instruction decode functionality, as viewed by both the instruction fetch logic and the execute logic.
@@ -108,7 +97,7 @@ module test_stage_d();
 			$display("@E %04X Expected Vs2=$0000000000000000; got Vs2=%016X", story_o, vs2_i);
 			$stop;
 		end
-		if(add_i !== 0) begin
+		if(add_i !== 1) begin
 			$display("@E %04X Expected to be adding.", story_o);
 			$stop;
 		end
@@ -133,6 +122,12 @@ module test_stage_d();
 		// During reset, the result of the instruction decoder must be a bubble.
 		reset_o <= 1;
 		tick(16'h0000);
+		assert_bubble();
+
+		// When not in reset, any unacknowledged value on the F-bus must be treated as a bubble.
+		reset_o <= 0;
+		f_ack_o <= 0;
+		tick(16'h0100);
 		assert_bubble();
 
 		$display("@I Done.");
