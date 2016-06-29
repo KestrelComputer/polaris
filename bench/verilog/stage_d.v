@@ -24,7 +24,9 @@ module stage_d(
 
 	// W-stage I/O
 	input	[63:0]	w_dat1_i,	// Contents of register 1 from register file (W for writeback stage)
-	output	[4:0]	w_rs1_o
+	output	[4:0]	w_rs1_o,
+	input	[63:0]	w_dat2_i,	// Contents of register 2 from register file (W for writeback stage)
+	output	[4:0]	w_rs2_o
 );
 	wire isBubble = reset_i | ~f_ack_i;
 
@@ -40,6 +42,7 @@ module stage_d(
 	assign d_rd_o = ir[11:7];
 	wire [2:0] fn3 = ir[14:12];
 	assign w_rs1_o = ir[19:15];
+	assign w_rs2_o = ir[24:20];
 	wire fn4sign = ~is_aluI ? ir[30] : isShift ? ir[30] : 0;
 	wire [3:0] d_alu_o = {fn4sign, fn3};
 
@@ -55,10 +58,14 @@ module stage_d(
 	// Steer data to the second ALU input for the execute stage.
 
 	wire is_aluI = opcode == 7'b0010011;
+	wire is_alu = opcode == 7'b0110011;
 	wire isShift = (fn3 == 3'b001) | (fn3 == 3'b101);
+
+	// Control signal for M-stage.  1 if memory accoess; 0 otherwise.
+
 	wire d_mem_o = 0;
 
-	assign d_vs2_o = (is_aluI & ~isShift)? imm12i : (is_aluI & isShift) ? imm6sh : imm12i;
+	assign d_vs2_o = (is_aluI & ~isShift)? imm12i : (is_aluI & isShift) ? imm6sh : (is_alu) ? w_dat2_i : imm12i;
 endmodule
 
 // This module exercises the instruction decode functionality, as viewed by both the instruction fetch logic and the execute logic.
@@ -73,7 +80,9 @@ module test_stage_d();
 
 	wire [4:0] rd_i;		// Destination register (X0..X31)
 	wire [4:0] rs1_i;		// Source register 1 (normally goes to register file)
+	wire [4:0] rs2_i;		// Source register 2 (normally goes to register file)
 	reg [63:0] w_dat1_o;		// Register file's concept of register 1's value.
+	reg [63:0] w_dat2_o;		// Register file's concept of register 2's value.
 	wire [63:0] vs1_i;		// Contents of register Rs1 or immediate, as appropriate
 	wire [63:0] vs2_i;		// Contents of register Rs2 or immediate, as appropriate
 	wire [3:0] d_alu_i;
@@ -86,7 +95,9 @@ module test_stage_d();
 		.f_dat_i(f_dat_o),
 		.d_rd_o(rd_i),
 		.w_rs1_o(rs1_i),
+		.w_rs2_o(rs2_i),
 		.w_dat1_i(w_dat1_o),
+		.w_dat2_i(w_dat2_o),
 		.d_vs1_o(vs1_i),
 		.d_vs2_o(vs2_i),
 		.d_alu_o(d_alu_i),
@@ -113,6 +124,16 @@ module test_stage_d();
 	begin
 		if(rs1_i !== expected) begin
 			$display("@E %04X Expected Rs1=$%016X; got Rs1=%016X", story_o, expected, rs1_i);
+			$stop;
+		end
+	end
+	endtask
+
+	task assert_rs2;
+	input [4:0] expected;
+	begin
+		if(rs2_i !== expected) begin
+			$display("@E %04X Expected Rs2=$%016X; got Rs2=%016X", story_o, expected, rs2_i);
 			$stop;
 		end
 	end
@@ -182,6 +203,7 @@ module test_stage_d();
 		f_ack_o <= 1;
 		f_dat_o <= 32'hFFFFFFFF;
 		w_dat1_o <= 64'h0011223344556677;
+		w_dat2_o <= 64'h8899AABBCCDDEEFF;
 		tick(16'hFFFF);
 
 		// During reset, the result of the instruction decoder must be a bubble.
@@ -313,6 +335,146 @@ module test_stage_d();
 		assert_vs1(64'h0011223344556677);
 		assert_rd(2);
 		assert_alu_fn(`ALU_ADD);
+		assert_mem(0);
+
+		// When executing ADD X2, X3, X4, we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value of X4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b0000000_00100_00011_000_00010_0110011;
+		tick(16'h0300);
+		assert_rs1(3);
+		assert_rs2(4);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(64'h8899AABBCCDDEEFF);
+		assert_rd(2);
+		assert_alu_fn(`ALU_ADD);
+		assert_mem(0);
+
+		// When executing SUB X2, X3, X4, we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value of X4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b0100000_00100_00011_000_00010_0110011;
+		tick(16'h0300);
+		assert_rs1(3);
+		assert_rs2(4);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(64'h8899AABBCCDDEEFF);
+		assert_rd(2);
+		assert_alu_fn(`ALU_SUB);
+		assert_mem(0);
+
+		// When executing SLL X2, X3, X4, we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value of X4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b0000000_00100_00011_001_00010_0110011;
+		tick(16'h0310);
+		assert_rs1(3);
+		assert_rs2(4);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(64'h8899AABBCCDDEEFF);
+		assert_rd(2);
+		assert_alu_fn(`ALU_SLL);
+		assert_mem(0);
+
+		// When executing SLT X2, X3, X4, we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value of X4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b0000000_00100_00011_010_00010_0110011;
+		tick(16'h0320);
+		assert_rs1(3);
+		assert_rs2(4);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(64'h8899AABBCCDDEEFF);
+		assert_rd(2);
+		assert_alu_fn(`ALU_SLT);
+		assert_mem(0);
+
+		// When executing SLTU X2, X3, X4, we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value of X4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b0000000_00100_00011_011_00010_0110011;
+		tick(16'h0330);
+		assert_rs1(3);
+		assert_rs2(4);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(64'h8899AABBCCDDEEFF);
+		assert_rd(2);
+		assert_alu_fn(`ALU_SLTU);
+		assert_mem(0);
+
+		// When executing XOR X2, X3, X4, we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value of X4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b0000000_00100_00011_100_00010_0110011;
+		tick(16'h0340);
+		assert_rs1(3);
+		assert_rs2(4);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(64'h8899AABBCCDDEEFF);
+		assert_rd(2);
+		assert_alu_fn(`ALU_XOR);
+		assert_mem(0);
+
+		// When executing SRL X2, X3, X4, we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value of X4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b0000000_00100_00011_101_00010_0110011;
+		tick(16'h0350);
+		assert_rs1(3);
+		assert_rs2(4);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(64'h8899AABBCCDDEEFF);
+		assert_rd(2);
+		assert_alu_fn(`ALU_SRL);
+		assert_mem(0);
+
+		// When executing SRA X2, X3, X4, we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value of X4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b0100000_00100_00011_101_00010_0110011;
+		tick(16'h0358);
+		assert_rs1(3);
+		assert_rs2(4);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(64'h8899AABBCCDDEEFF);
+		assert_rd(2);
+		assert_alu_fn(`ALU_SRA);
+		assert_mem(0);
+
+		// When executing OR X2, X3, X4, we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value of X4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b0000000_00100_00011_110_00010_0110011;
+		tick(16'h0360);
+		assert_rs1(3);
+		assert_rs2(4);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(64'h8899AABBCCDDEEFF);
+		assert_rd(2);
+		assert_alu_fn(`ALU_OR);
+		assert_mem(0);
+
+		// When executing AND X2, X3, X4, we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value of X4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b0000000_00100_00011_111_00010_0110011;
+		tick(16'h0370);
+		assert_rs1(3);
+		assert_rs2(4);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(64'h8899AABBCCDDEEFF);
+		assert_rd(2);
+		assert_alu_fn(`ALU_AND);
 		assert_mem(0);
 
 		$display("@I Done.");
