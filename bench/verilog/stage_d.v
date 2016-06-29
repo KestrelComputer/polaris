@@ -18,11 +18,13 @@ module stage_d(
 	// D-stage I/O
 	output	[63:0]	d_vs1_o,	// Contents of 1st operand (register or immediate as appropriate)
 	output	[63:0]	d_vs2_o,	// Contents of 2nd operand (register or immediate as appropriate)
+	output	[63:0]	d_vs3_o,	// Contents of 3rd operand (usually for branches)
 	output	[4:0]	d_rd_o,		// Destination register for eventual write-back, or 0.
 	output	[3:0]	d_alu_o,	// ALU operation.  If none, ADD if usually a safe default.
 	output	[3:0]	d_mem_o,	// 0, 1, 2, 4, or 8.  0 for no memory access, otherwise indicates data width.
 	output		d_signed_o,	// 0 if unsigned load; 1 if signed load; undefined otherwise.
 	output		d_store_o,	// 0 if memory fetch, 1 if memory store, undefined otherwise.
+	output		d_cbranch_o,	// 1 if conditional branch; 0 otherwise.
 
 	// W-stage I/O
 	input	[63:0]	w_dat1_i,	// Contents of register 1 from register file (W for writeback stage)
@@ -41,7 +43,7 @@ module stage_d(
 	// overlap.
 
 	wire [6:0] opcode = ir[6:0];
-	assign d_rd_o = (is_store) ? 0 : ir[11:7];
+	assign d_rd_o = (is_store | is_cbranch) ? 0 : ir[11:7];
 	wire [2:0] fn3 = ir[14:12];
 	assign w_rs1_o = ir[19:15];
 	assign w_rs2_o = ir[24:20];
@@ -52,7 +54,7 @@ module stage_d(
 	wire [63:0] imm12i = {{52{ir[31]}}, ir[31:20]};		// 12-bit signed (non-shift I-format)
 	wire [63:0] imm12s = {{52{ir[31]}}, ir[31:25], ir[11:7]};	// 12-bit signed (S-format)
 	wire [63:0] imm6sh = {58'd0, ir[25:20]};		// 6-bit unsigned (shift I-format)
-
+	wire [63:0] disp13 = {{51{ir[31]}}, ir[7], ir[30:25], ir[11:8], 1'b0};	// 13-bit displacement (SB-format)
 	
 	// Steer data to the first ALU input for the execute stage.
 
@@ -64,11 +66,18 @@ module stage_d(
 	wire is_store = opcode == 7'b0100011;
 	wire is_aluI = opcode == 7'b0010011;
 	wire is_alu = opcode == 7'b0110011;
+	wire is_cbranch = opcode == 7'b1100011;
 	wire isShift = (fn3 == 3'b001) | (fn3 == 3'b101);
 
 	wire is_I = is_load | (is_aluI & ~isShift);
 
-	assign d_vs2_o = (is_aluI & isShift) ? imm6sh : (is_alu) ? w_dat2_i : (is_store) ? imm12s : imm12i;
+	assign d_vs2_o = (is_aluI & isShift) ? imm6sh : (is_alu | is_cbranch) ? w_dat2_i : (is_store) ? imm12s : imm12i;
+
+	// Steer data to the third value bus, usually for conditional branches.
+
+	assign d_vs3_o = (isBubble) ? 0 : disp13;
+
+	wire d_cbranch_o = is_cbranch;
 
 	// Control signal for M-stage.  1 if memory accoess; 0 otherwise.
 
@@ -115,9 +124,11 @@ module test_stage_d();
 	reg [63:0] w_dat2_o;		// Register file's concept of register 2's value.
 	wire [63:0] vs1_i;		// Contents of register Rs1 or immediate, as appropriate
 	wire [63:0] vs2_i;		// Contents of register Rs2 or immediate, as appropriate
+	wire [63:0] vs3_i;		// Third operand
 	wire [3:0] d_alu_i;
 	wire [3:0] d_mem_i;
 	wire d_signed_i;
+	wire d_cbranch_i;
 
 	stage_d d(
 		.clk_i(clk_o),
@@ -131,10 +142,12 @@ module test_stage_d();
 		.w_dat2_i(w_dat2_o),
 		.d_vs1_o(vs1_i),
 		.d_vs2_o(vs2_i),
+		.d_vs3_o(vs3_i),
 		.d_alu_o(d_alu_i),
 		.d_mem_o(d_mem_i),
 		.d_signed_o(d_signed_i),
-		.d_store_o(d_store_i)
+		.d_store_o(d_store_i),
+		.d_cbranch_o(d_cbranch_i)
 	);
 
 	// 50MHz clock.
@@ -149,6 +162,7 @@ module test_stage_d();
 		assert_vs1(0);
 		assert_vs2(0);
 		assert_alu_fn(`ALU_ADD);
+		assert_cbranch(0);
 	end
 	endtask
 
@@ -202,6 +216,16 @@ module test_stage_d();
 	end
 	endtask
 
+	task assert_vs3;
+	input [63:0] expected;
+	begin
+		if(vs3_i !== expected) begin
+			$display("@E %04X Expected Vs3=$%016X; got Vs3=%016X", story_o, expected, vs3_i);
+			$stop;
+		end
+	end
+	endtask
+
 	task assert_alu_fn;
 	input [3:0] expected;
 	begin
@@ -237,6 +261,16 @@ module test_stage_d();
 	begin
 		if(d_store_i !== expected) begin
 			$display("@E %04X Expected store operation flag %d; got %d.", story_o, expected, d_store_i);
+			$stop;
+		end
+	end
+	endtask
+
+	task assert_cbranch;
+	input expected;
+	begin
+		if(d_cbranch_i !== expected) begin
+			$display("@E %04X Expected conditional branch flag %d; got %d.", story_o, expected, d_cbranch_i);
 			$stop;
 		end
 	end
@@ -281,6 +315,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_ADD);
 		assert_mem(0);
+		assert_cbranch(0);
 
 		// When executing SLLI X2, X3, 4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be 4.
@@ -292,6 +327,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_SLL);
 		assert_mem(0);
+		assert_cbranch(0);
 
 		// When executing SLTI X2, X3, 4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be 4.
@@ -303,6 +339,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_SLT);
 		assert_mem(0);
+		assert_cbranch(0);
 
 		// When executing SLTIU X2, X3, 4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be 4.
@@ -314,6 +351,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_SLTU);
 		assert_mem(0);
+		assert_cbranch(0);
 
 		// When executing XORI X2, X3, 4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be 4.
@@ -325,6 +363,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_XOR);
 		assert_mem(0);
+		assert_cbranch(0);
 
 		// When executing SRLI/SRAI X2, X3, 4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be 4.
@@ -336,6 +375,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_SRL);
 		assert_mem(0);
+		assert_cbranch(0);
 
 		// When executing SRLI/SRAI X2, X3, 4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be 4.
@@ -347,6 +387,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_SRA);
 		assert_mem(0);
+		assert_cbranch(0);
 
 		// When executing ORI X2, X3, 4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be 4.
@@ -358,6 +399,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_OR);
 		assert_mem(0);
+		assert_cbranch(0);
 
 		// When executing ANDI X2, X3, 4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be 4.
@@ -369,6 +411,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_AND);
 		assert_mem(0);
+		assert_cbranch(0);
 
 		// When executing ADDI X2, X3, -4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be -4.
@@ -380,6 +423,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_ADD);
 		assert_mem(0);
+		assert_cbranch(0);
 
 		// When executing ADD X2, X3, X4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -393,6 +437,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_ADD);
 		assert_mem(0);
+		assert_cbranch(0);
 
 		// When executing SUB X2, X3, X4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -406,6 +451,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_SUB);
 		assert_mem(0);
+		assert_cbranch(0);
 
 		// When executing SLL X2, X3, X4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -419,6 +465,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_SLL);
 		assert_mem(0);
+		assert_cbranch(0);
 
 		// When executing SLT X2, X3, X4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -432,6 +479,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_SLT);
 		assert_mem(0);
+		assert_cbranch(0);
 
 		// When executing SLTU X2, X3, X4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -445,6 +493,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_SLTU);
 		assert_mem(0);
+		assert_cbranch(0);
 
 		// When executing XOR X2, X3, X4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -458,6 +507,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_XOR);
 		assert_mem(0);
+		assert_cbranch(0);
 
 		// When executing SRL X2, X3, X4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -471,6 +521,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_SRL);
 		assert_mem(0);
+		assert_cbranch(0);
 
 		// When executing SRA X2, X3, X4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -484,6 +535,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_SRA);
 		assert_mem(0);
+		assert_cbranch(0);
 
 		// When executing OR X2, X3, X4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -497,6 +549,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_OR);
 		assert_mem(0);
+		assert_cbranch(0);
 
 		// When executing AND X2, X3, X4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -510,6 +563,7 @@ module test_stage_d();
 		assert_rd(2);
 		assert_alu_fn(`ALU_AND);
 		assert_mem(0);
+		assert_cbranch(0);
 
 		// When executing LB X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -524,6 +578,7 @@ module test_stage_d();
 		assert_mem(1);
 		assert_signed(1);
 		assert_isStore(0);
+		assert_cbranch(0);
 
 		// When executing LH X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -538,6 +593,7 @@ module test_stage_d();
 		assert_mem(2);
 		assert_signed(1);
 		assert_isStore(0);
+		assert_cbranch(0);
 
 		// When executing LW X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -552,6 +608,7 @@ module test_stage_d();
 		assert_mem(4);
 		assert_signed(1);
 		assert_isStore(0);
+		assert_cbranch(0);
 
 		// When executing LD X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -566,6 +623,7 @@ module test_stage_d();
 		assert_mem(8);
 		assert_signed(1);
 		assert_isStore(0);
+		assert_cbranch(0);
 
 		// When executing LBU X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -580,6 +638,7 @@ module test_stage_d();
 		assert_mem(1);
 		assert_signed(0);
 		assert_isStore(0);
+		assert_cbranch(0);
 
 		// When executing LHU X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -594,6 +653,7 @@ module test_stage_d();
 		assert_mem(2);
 		assert_signed(0);
 		assert_isStore(0);
+		assert_cbranch(0);
 
 		// When executing LWU X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -608,6 +668,7 @@ module test_stage_d();
 		assert_mem(4);
 		assert_signed(0);
 		assert_isStore(0);
+		assert_cbranch(0);
 
 		// When executing LDU X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -622,6 +683,7 @@ module test_stage_d();
 		assert_mem(8);
 		assert_signed(0);
 		assert_isStore(0);
+		assert_cbranch(0);
 
 		// When executing SB X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -637,6 +699,7 @@ module test_stage_d();
 		assert_mem(1);
 		assert_signed(1);
 		assert_isStore(1);
+		assert_cbranch(0);
 
 		// When executing SH X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -652,6 +715,7 @@ module test_stage_d();
 		assert_mem(2);
 		assert_signed(1);
 		assert_isStore(1);
+		assert_cbranch(0);
 
 		// When executing SW X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -667,6 +731,7 @@ module test_stage_d();
 		assert_mem(4);
 		assert_signed(1);
 		assert_isStore(1);
+		assert_cbranch(0);
 
 		// When executing SD X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -682,6 +747,91 @@ module test_stage_d();
 		assert_mem(8);
 		assert_signed(1);
 		assert_isStore(1);
+		assert_cbranch(0);
+
+		// When executing BEQ X2, X3, 8, we expect X2 to be Rs1,
+		// X3 to be Rs2, and 8 to appear on the Vs3 bus.
+		f_dat_o <= 32'b0000000_00011_00010_000_01000_1100011;
+		tick(16'h0600);
+		assert_rs1(2);
+		assert_rs2(3);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(64'h8899AABBCCDDEEFF);
+		assert_rd(0);
+		assert_vs3(64'h0000000000000008);
+		assert_alu_fn(`ALU_C_SEQ);
+		assert_mem(0);
+		assert_cbranch(1);
+
+		// When executing BNE X2, X3, 8, we expect X2 to be Rs1,
+		// X3 to be Rs2, and 8 to appear on the Vs3 bus.
+		f_dat_o <= 32'b0000000_00011_00010_001_01000_1100011;
+		tick(16'h0610);
+		assert_rs1(2);
+		assert_rs2(3);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(64'h8899AABBCCDDEEFF);
+		assert_rd(0);
+		assert_vs3(64'h0000000000000008);
+		assert_alu_fn(`ALU_C_SNE);
+		assert_mem(0);
+		assert_cbranch(1);
+
+		// When executing BLT X2, X3, 8, we expect X2 to be Rs1,
+		// X3 to be Rs2, and 8 to appear on the Vs3 bus.
+		f_dat_o <= 32'b0000000_00011_00010_100_01000_1100011;
+		tick(16'h0640);
+		assert_rs1(2);
+		assert_rs2(3);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(64'h8899AABBCCDDEEFF);
+		assert_rd(0);
+		assert_vs3(64'h0000000000000008);
+		assert_alu_fn(`ALU_C_SLT);
+		assert_mem(0);
+		assert_cbranch(1);
+
+		// When executing BGE X2, X3, 8, we expect X2 to be Rs1,
+		// X3 to be Rs2, and 8 to appear on the Vs3 bus.
+		f_dat_o <= 32'b0000000_00011_00010_101_01000_1100011;
+		tick(16'h0650);
+		assert_rs1(2);
+		assert_rs2(3);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(64'h8899AABBCCDDEEFF);
+		assert_rd(0);
+		assert_vs3(64'h0000000000000008);
+		assert_alu_fn(`ALU_C_SGE);
+		assert_mem(0);
+		assert_cbranch(1);
+
+		// When executing BLTU X2, X3, 8, we expect X2 to be Rs1,
+		// X3 to be Rs2, and 8 to appear on the Vs3 bus.
+		f_dat_o <= 32'b0000000_00011_00010_110_01000_1100011;
+		tick(16'h0660);
+		assert_rs1(2);
+		assert_rs2(3);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(64'h8899AABBCCDDEEFF);
+		assert_rd(0);
+		assert_vs3(64'h0000000000000008);
+		assert_alu_fn(`ALU_C_SLTU);
+		assert_mem(0);
+		assert_cbranch(1);
+
+		// When executing BGEU X2, X3, 8, we expect X2 to be Rs1,
+		// X3 to be Rs2, and 8 to appear on the Vs3 bus.
+		f_dat_o <= 32'b0000000_00011_00010_111_01000_1100011;
+		tick(16'h0670);
+		assert_rs1(2);
+		assert_rs2(3);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(64'h8899AABBCCDDEEFF);
+		assert_rd(0);
+		assert_vs3(64'h0000000000000008);
+		assert_alu_fn(`ALU_C_SGEU);
+		assert_mem(0);
+		assert_cbranch(1);
 
 		$display("@I Done.");
 		$stop;
