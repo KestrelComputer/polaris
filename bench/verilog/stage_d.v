@@ -22,6 +22,7 @@ module stage_d(
 	output	[3:0]	d_alu_o,	// ALU operation.  If none, ADD if usually a safe default.
 	output	[3:0]	d_mem_o,	// 0, 1, 2, 4, or 8.  0 for no memory access, otherwise indicates data width.
 	output		d_signed_o,	// 0 if unsigned load; 1 if signed load; undefined otherwise.
+	output		d_store_o,	// 0 if memory fetch, 1 if memory store, undefined otherwise.
 
 	// W-stage I/O
 	input	[63:0]	w_dat1_i,	// Contents of register 1 from register file (W for writeback stage)
@@ -40,7 +41,7 @@ module stage_d(
 	// overlap.
 
 	wire [6:0] opcode = ir[6:0];
-	assign d_rd_o = ir[11:7];
+	assign d_rd_o = (is_store) ? 0 : ir[11:7];
 	wire [2:0] fn3 = ir[14:12];
 	assign w_rs1_o = ir[19:15];
 	assign w_rs2_o = ir[24:20];
@@ -48,8 +49,9 @@ module stage_d(
 	wire [3:0] d_alu_o = force_add ? `ALU_ADD : {fn4sign, fn3};
 
 	// These are all the different kinds of immediate operands RISC-V supports.
-	wire [63:0] imm12i = {{52{ir[31]}}, ir[31:20]};		// 12-bit signed (I, non-shifts)
-	wire [63:0] imm6sh = {58'd0, ir[25:20]};		// 6-bit unsigned (I, shifts)
+	wire [63:0] imm12i = {{52{ir[31]}}, ir[31:20]};		// 12-bit signed (non-shift I-format)
+	wire [63:0] imm12s = {{52{ir[31]}}, ir[31:25], ir[11:7]};	// 12-bit signed (S-format)
+	wire [63:0] imm6sh = {58'd0, ir[25:20]};		// 6-bit unsigned (shift I-format)
 
 	
 	// Steer data to the first ALU input for the execute stage.
@@ -59,19 +61,20 @@ module stage_d(
 	// Steer data to the second ALU input for the execute stage.
 
 	wire is_load = opcode == 7'b0000011;
+	wire is_store = opcode == 7'b0100011;
 	wire is_aluI = opcode == 7'b0010011;
 	wire is_alu = opcode == 7'b0110011;
 	wire isShift = (fn3 == 3'b001) | (fn3 == 3'b101);
 
 	wire is_I = is_load | (is_aluI & ~isShift);
 
-	assign d_vs2_o = (is_aluI & isShift) ? imm6sh : (is_alu) ? w_dat2_i : imm12i;
+	assign d_vs2_o = (is_aluI & isShift) ? imm6sh : (is_alu) ? w_dat2_i : (is_store) ? imm12s : imm12i;
 
 	// Control signal for M-stage.  1 if memory accoess; 0 otherwise.
 
 	reg [3:0] d_mem_o;
 	always @(*) begin
-		case({is_load, fn3})
+		case({is_load | is_store, fn3})
 		4'b0000: d_mem_o <= 0;
 		4'b0001: d_mem_o <= 0;
 		4'b0010: d_mem_o <= 0;
@@ -90,8 +93,9 @@ module stage_d(
 		4'b1111: d_mem_o <= 4'b1000;
 		endcase
 	end
-	wire force_add = is_load;
+	wire force_add = is_load | is_store;
 	wire d_signed_o = ~fn3[2];
+	assign d_store_o = is_store;
 endmodule
 
 // This module exercises the instruction decode functionality, as viewed by both the instruction fetch logic and the execute logic.
@@ -129,7 +133,8 @@ module test_stage_d();
 		.d_vs2_o(vs2_i),
 		.d_alu_o(d_alu_i),
 		.d_mem_o(d_mem_i),
-		.d_signed_o(d_signed_i)
+		.d_signed_o(d_signed_i),
+		.d_store_o(d_store_i)
 	);
 
 	// 50MHz clock.
@@ -222,6 +227,16 @@ module test_stage_d();
 	begin
 		if(d_signed_i !== expected) begin
 			$display("@E %04X Expected signed memory load flag %d; got %d.", story_o, expected, d_signed_i);
+			$stop;
+		end
+	end
+	endtask
+
+	task assert_isStore;
+	input expected;
+	begin
+		if(d_store_i !== expected) begin
+			$display("@E %04X Expected store operation flag %d; got %d.", story_o, expected, d_store_i);
 			$stop;
 		end
 	end
@@ -528,6 +543,7 @@ module test_stage_d();
 		assert_alu_fn(`ALU_ADD);
 		assert_mem(1);
 		assert_signed(1);
+		assert_isStore(0);
 
 		// When executing LH X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -542,6 +558,7 @@ module test_stage_d();
 		assert_alu_fn(`ALU_ADD);
 		assert_mem(2);
 		assert_signed(1);
+		assert_isStore(0);
 
 		// When executing LW X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -556,6 +573,7 @@ module test_stage_d();
 		assert_alu_fn(`ALU_ADD);
 		assert_mem(4);
 		assert_signed(1);
+		assert_isStore(0);
 
 		// When executing LD X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -570,6 +588,7 @@ module test_stage_d();
 		assert_alu_fn(`ALU_ADD);
 		assert_mem(8);
 		assert_signed(1);
+		assert_isStore(0);
 
 		// When executing LBU X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -584,6 +603,7 @@ module test_stage_d();
 		assert_alu_fn(`ALU_ADD);
 		assert_mem(1);
 		assert_signed(0);
+		assert_isStore(0);
 
 		// When executing LHU X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -598,6 +618,7 @@ module test_stage_d();
 		assert_alu_fn(`ALU_ADD);
 		assert_mem(2);
 		assert_signed(0);
+		assert_isStore(0);
 
 		// When executing LWU X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -612,6 +633,7 @@ module test_stage_d();
 		assert_alu_fn(`ALU_ADD);
 		assert_mem(4);
 		assert_signed(0);
+		assert_isStore(0);
 
 		// When executing LDU X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
@@ -626,6 +648,71 @@ module test_stage_d();
 		assert_alu_fn(`ALU_ADD);
 		assert_mem(8);
 		assert_signed(0);
+		assert_isStore(0);
+
+		// When executing SB X2, 4(X3), we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value 4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b0000000_00010_00011_000_00100_0100011;
+		tick(16'h0500);
+		assert_rs1(3);
+		assert_rs2(2);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(4);
+		assert_rd(0);
+		assert_alu_fn(`ALU_ADD);
+		assert_mem(1);
+		assert_signed(1);
+		assert_isStore(1);
+
+		// When executing SH X2, 4(X3), we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value 4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b0000000_00010_00011_001_00100_0100011;
+		tick(16'h0510);
+		assert_rs1(3);
+		assert_rs2(2);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(4);
+		assert_rd(0);
+		assert_alu_fn(`ALU_ADD);
+		assert_mem(2);
+		assert_signed(1);
+		assert_isStore(1);
+
+		// When executing SW X2, 4(X3), we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value 4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b0000000_00010_00011_010_00100_0100011;
+		tick(16'h0520);
+		assert_rs1(3);
+		assert_rs2(2);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(4);
+		assert_rd(0);
+		assert_alu_fn(`ALU_ADD);
+		assert_mem(4);
+		assert_signed(1);
+		assert_isStore(1);
+
+		// When executing SD X2, 4(X3), we expect X2 to be the
+		// destination, Vs1 to hold the value of X3, and Vs2 to be the
+		// value 4.
+		f_ack_o <= 1;
+		f_dat_o <= 32'b0000000_00010_00011_011_00100_0100011;
+		tick(16'h0530);
+		assert_rs1(3);
+		assert_rs2(2);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(4);
+		assert_rd(0);
+		assert_alu_fn(`ALU_ADD);
+		assert_mem(8);
+		assert_signed(1);
+		assert_isStore(1);
 
 		$display("@I Done.");
 		$stop;
