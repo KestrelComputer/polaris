@@ -16,7 +16,7 @@
 // If F_ACK_I is negated during a cycle, this will introduce a bubble into the
 // pipeline; however, it will not stall it.
 
-`define RESET_PC	(64'hFFFF_FFFF_FFFF_FF00 >> 2)
+`define RESET_PC	((64'hFFFF_FFFF_FFFF_FF00) >> 2)
 
 module stage_f(
 	input		clk_i,
@@ -26,10 +26,7 @@ module stage_f(
 	output		f_cyc_o,	// Implies f_sel[3:0]
 	input		f_ack_i,
 	output	[63:2]	f_adr_o,
-	input	[31:0]	f_dat_i,
-
-	// M-Bus (Data I/O bus)
-	output		m_cyc_o
+	input	[31:0]	f_dat_i
 );
 	reg f_cyc_o;
 	always @(posedge clk_i) begin

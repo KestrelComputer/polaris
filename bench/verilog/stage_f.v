@@ -19,8 +19,7 @@ module test_stage_f();
 		.reset_i(reset_o),
 		.f_cyc_o(f_cyc_i),
 		.f_ack_i(f_ack_o),
-		.f_adr_o(f_adr_i),
-		.m_cyc_o(m_cyc_i)
+		.f_adr_o(f_adr_i)
 	);
 
 	// 50MHz clock.
@@ -49,7 +48,7 @@ module test_stage_f();
 	task assert_f_adr;
 	input [63:0] expected_address;
 	begin
-		if(f_adr_i !== (expected_address >> 2)) begin
+		if(f_adr_i !== expected_address[63:2]) begin
 			$display("@E %04X Expected instruction fetch from $%016X; got $%016X", story_o, expected_address, {f_adr_i, 2'b00});
 			$stop;
 		end
