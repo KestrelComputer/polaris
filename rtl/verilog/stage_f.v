@@ -16,7 +16,7 @@
 // If F_ACK_I is negated during a cycle, this will introduce a bubble into the
 // pipeline; however, it will not stall it.
 
-`define RESET_PC	((64'hFFFF_FFFF_FFFF_FF00) >> 2)
+`define RESET_PC	($unsigned(64'hFFFF_FFFF_FFFF_FF00) >> 2)
 
 module stage_f(
 	input		clk_i,
