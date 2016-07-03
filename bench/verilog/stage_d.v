@@ -55,10 +55,11 @@ module stage_d(
 	wire [63:0] imm12s = {{52{ir[31]}}, ir[31:25], ir[11:7]};	// 12-bit signed (S-format)
 	wire [63:0] imm6sh = {58'd0, ir[25:20]};		// 6-bit unsigned (shift I-format)
 	wire [63:0] disp13 = {{51{ir[31]}}, ir[7], ir[30:25], ir[11:8], 1'b0};	// 13-bit displacement (SB-format)
+	wire [63:0] imm20u = {{32{ir[31]}}, ir[31:12], 12'b0000_0000_0000};	// 20-bit U-format immediate
 	
 	// Steer data to the first ALU input for the execute stage.
 
-	assign d_vs1_o = (isBubble)? 64'h0000000000000000 : w_dat1_i;
+	assign d_vs1_o = (isBubble | is_lui)? 64'h0000000000000000 : w_dat1_i;
 
 	// Steer data to the second ALU input for the execute stage.
 
@@ -67,11 +68,12 @@ module stage_d(
 	wire is_aluI = opcode == 7'b0010011;
 	wire is_alu = opcode == 7'b0110011;
 	wire is_cbranch = opcode == 7'b1100011;
+	wire is_lui = opcode == 7'b0110111;
 	wire isShift = (fn3 == 3'b001) | (fn3 == 3'b101);
 
 	wire is_I = is_load | (is_aluI & ~isShift);
 
-	assign d_vs2_o = (is_aluI & isShift) ? imm6sh : (is_alu | is_cbranch) ? w_dat2_i : (is_store) ? imm12s : imm12i;
+	assign d_vs2_o = (is_aluI & isShift) ? imm6sh : (is_alu | is_cbranch) ? w_dat2_i : (is_store) ? imm12s : (is_lui) ? imm20u : imm12i;
 
 	// Steer data to the third value bus, usually for conditional branches.
 
@@ -102,7 +104,7 @@ module stage_d(
 		4'b1111: d_mem_o <= 4'b1000;
 		endcase
 	end
-	wire force_add = is_load | is_store;
+	wire force_add = is_load | is_store | is_lui;
 	wire d_signed_o = ~fn3[2];
 	assign d_store_o = is_store;
 endmodule
@@ -832,6 +834,27 @@ module test_stage_d();
 		assert_alu_fn(`ALU_C_SGEU);
 		assert_mem(0);
 		assert_cbranch(1);
+
+		// When executing LUI X2, 3, we expect X2 to be Rd,
+		// Vs1 to be zero, Vs2 to be the immediate provided,
+		// and the ALU forced to add.
+		f_dat_o <= 32'b0111_0111_0111_0111_0111_00010_0110111;
+		tick(16'h0700);
+		assert_vs1(64'h0000000000000000);
+		assert_vs2(64'h0000000077777000);
+		assert_rd(2);
+		assert_alu_fn(`ALU_ADD);
+		assert_mem(0);
+		assert_cbranch(0);
+
+		f_dat_o <= 32'b1000_1000_1000_1000_1000_11101_0110111;
+		tick(16'h0710);
+		assert_vs1(64'h0000000000000000);
+		assert_vs2(64'hFFFFFFFF88888000);
+		assert_rd(29);
+		assert_alu_fn(`ALU_ADD);
+		assert_mem(0);
+		assert_cbranch(0);
 
 		$display("@I Done.");
 		$stop;
