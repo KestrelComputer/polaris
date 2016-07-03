@@ -58,7 +58,7 @@ module stage_d(
 	wire [63:0] imm12i = {{52{ir[31]}}, ir[31:20]};		// 12-bit signed (non-shift I-format)
 	wire [63:0] imm12s = {{52{ir[31]}}, ir[31:25], ir[11:7]};	// 12-bit signed (S-format)
 	wire [63:0] imm6sh = {58'd0, ir[25:20]};		// 6-bit unsigned (shift I-format)
-	wire [63:0] disp13 = {{51{ir[31]}}, ir[7], ir[30:25], ir[11:8], 1'b0};	// 13-bit displacement (SB-format)
+	wire [63:0] disp13 = {{52{ir[31]}}, ir[7], ir[30:25], ir[11:8], 1'b0};	// 13-bit displacement (SB-format)
 	wire [63:0] imm20u = {{32{ir[31]}}, ir[31:12], 12'b0000_0000_0000};	// 20-bit U-format immediate
 	
 	// Steer data to the first ALU input for the execute stage.
@@ -79,11 +79,18 @@ module stage_d(
 
 	wire is_I = is_load | (is_aluI & ~isShift);
 
-	assign d_vs2_o = (is_aluI & isShift) ? imm6sh : (is_alu | is_cbranch) ? w_dat2_i : (is_store) ? imm12s : (is_lui | is_auipc) ? imm20u : imm12i;
+	assign d_vs2_o = (is_aluI & isShift) ? imm6sh
+			: (is_alu | is_cbranch) ? w_dat2_i
+			: (is_store) ? imm12s
+			: (is_lui | is_auipc) ? imm20u
+			: imm12i;
 
-	// Steer data to the third value bus, usually for conditional branches.
+	// Steer control flow data to the third value bus.
 
 	assign d_vs3_o = (isBubble) ? 0 : disp13;
+
+	// This signal instructs the execute stage to use the comparison set of
+	// operations, rather than the normal op-imm or op-reg operations.
 
 	wire d_cbranch_o = is_cbranch;
 
@@ -772,6 +779,18 @@ module test_stage_d();
 		assert_vs2(64'h8899AABBCCDDEEFF);
 		assert_rd(0);
 		assert_vs3(64'h0000000000000008);
+		assert_alu_fn(`ALU_C_SEQ);
+		assert_mem(0);
+		assert_cbranch(1);
+
+		f_dat_o <= 32'b1000000_00011_00010_000_01001_1100011;
+		tick(16'h0608);
+		assert_rs1(2);
+		assert_rs2(3);
+		assert_vs1(64'h0011223344556677);
+		assert_vs2(64'h8899AABBCCDDEEFF);
+		assert_rd(0);
+		assert_vs3(64'hFFFFFFFFFFFFF808);
 		assert_alu_fn(`ALU_C_SEQ);
 		assert_mem(0);
 		assert_cbranch(1);
