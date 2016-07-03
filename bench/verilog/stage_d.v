@@ -13,8 +13,8 @@ module stage_d(
 
 	// F-stage I/O
 	input		f_ack_i,	// Instruction valid signal, basically.
-	input	[31:0]	f_dat_i,	// Next Instruction
-	input	[63:2]	f_adr_i,	// Instruction address
+	input	[31:0]	f_dat_i,	// Instruction to decode.
+	input	[63:2]	f_adr_i,	// Instruction address.
 
 	// D-stage I/O
 	output	[63:0]	d_vs1_o,	// Contents of 1st operand (register or immediate as appropriate)
@@ -33,6 +33,9 @@ module stage_d(
 	input	[63:0]	w_dat2_i,	// Contents of register 2 from register file (W for writeback stage)
 	output	[4:0]	w_rs2_o
 );
+	// Instruction Register (IR).  If the pipeline cannot supply an
+	// instruction, we just assume ADDI X0, X0, 0 (basically, NOP).
+
 	wire isBubble = reset_i | ~f_ack_i;
 
 	reg [31:0] ir;		// Instruction register
@@ -84,7 +87,9 @@ module stage_d(
 
 	wire d_cbranch_o = is_cbranch;
 
-	// Control signal for M-stage.  1 if memory accoess; 0 otherwise.
+	// Control signal for M-stage.  d_mem_o indicates the total number of
+	// bytes to transfer.  0 for no memory operation; 1, 2, 4, or 8
+	// otherwise.  All other values are illegal.
 
 	reg [3:0] d_mem_o;
 	always @(*) begin
@@ -873,6 +878,28 @@ module test_stage_d();
 		assert_alu_fn(`ALU_ADD);
 		assert_mem(0);
 		assert_cbranch(0);
+
+		// When JALR X2, 12(X3) is executed, we expect:
+		// - X2 is the destination register.  It will receive the value PC+4.
+		// - Vs1 carries the value of X3.
+		// - Vs2 carries the value 12.
+		// - Vs3 carries the value 4 (displacement from the instruction address).
+		// - d_ia_o equals instruction address.
+		// - ALU is told to add.  The sum will eventually be loaded into the PC.
+		//
+		// d_ia_o + Vs3 is placed into Rd, while Vs1 + Vs2 is placed
+		// into PC.  That's the plan, at least.
+
+		// When JAL X2, labelAddr is executed, we expect:
+		// - X2 is the destination register.  It will receive the value PC+4.
+		// - Vs1 equals the instruction address.
+		// - Vs2 equals the displacement.
+		// - Vs3 carries the value 4 (displacement from the instruction address).
+		// - d_ia_o equals instruction address.
+		// - ALU is told to add.  The sum will eventually be loaded into the PC.
+		//
+		// d_ia_o + Vs3 is placed into Rd, while Vs1 + Vs2 is placed
+		// into PC.  That's the plan, at least.
 
 		$display("@I Done.");
 		$stop;
