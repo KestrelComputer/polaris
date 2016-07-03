@@ -14,6 +14,7 @@ module stage_d(
 	// F-stage I/O
 	input		f_ack_i,	// Instruction valid signal, basically.
 	input	[31:0]	f_dat_i,	// Next Instruction
+	input	[63:2]	f_adr_i,	// Instruction address
 
 	// D-stage I/O
 	output	[63:0]	d_vs1_o,	// Contents of 1st operand (register or immediate as appropriate)
@@ -59,7 +60,7 @@ module stage_d(
 	
 	// Steer data to the first ALU input for the execute stage.
 
-	assign d_vs1_o = (isBubble | is_lui)? 64'h0000000000000000 : w_dat1_i;
+	assign d_vs1_o = (isBubble | is_lui)? 64'h0000000000000000 : (is_auipc) ? {f_adr_i, 2'b00} : w_dat1_i;
 
 	// Steer data to the second ALU input for the execute stage.
 
@@ -69,11 +70,13 @@ module stage_d(
 	wire is_alu = opcode == 7'b0110011;
 	wire is_cbranch = opcode == 7'b1100011;
 	wire is_lui = opcode == 7'b0110111;
+	wire is_auipc = opcode == 7'b0010111;
+
 	wire isShift = (fn3 == 3'b001) | (fn3 == 3'b101);
 
 	wire is_I = is_load | (is_aluI & ~isShift);
 
-	assign d_vs2_o = (is_aluI & isShift) ? imm6sh : (is_alu | is_cbranch) ? w_dat2_i : (is_store) ? imm12s : (is_lui) ? imm20u : imm12i;
+	assign d_vs2_o = (is_aluI & isShift) ? imm6sh : (is_alu | is_cbranch) ? w_dat2_i : (is_store) ? imm12s : (is_lui | is_auipc) ? imm20u : imm12i;
 
 	// Steer data to the third value bus, usually for conditional branches.
 
@@ -104,7 +107,7 @@ module stage_d(
 		4'b1111: d_mem_o <= 4'b1000;
 		endcase
 	end
-	wire force_add = is_load | is_store | is_lui;
+	wire force_add = is_load | is_store | is_lui | is_auipc;
 	wire d_signed_o = ~fn3[2];
 	assign d_store_o = is_store;
 endmodule
@@ -118,6 +121,7 @@ module test_stage_d();
 
 	reg f_ack_o;
 	reg [31:0] f_dat_o;
+	reg [63:2] f_adr_o;
 
 	wire [4:0] rd_i;		// Destination register (X0..X31)
 	wire [4:0] rs1_i;		// Source register 1 (normally goes to register file)
@@ -137,6 +141,7 @@ module test_stage_d();
 		.reset_i(reset_o),
 		.f_ack_i(f_ack_o),
 		.f_dat_i(f_dat_o),
+		.f_adr_i(f_adr_o),
 		.d_rd_o(rd_i),
 		.w_rs1_o(rs1_i),
 		.w_rs2_o(rs2_i),
@@ -291,6 +296,7 @@ module test_stage_d();
 		reset_o <= 0;
 		f_ack_o <= 1;
 		f_dat_o <= 32'hFFFFFFFF;
+		f_adr_o <= 62'b1111111111111111_1111111111111111_1111111111111111_11111111000000;
 		w_dat1_o <= 64'h0011223344556677;
 		w_dat2_o <= 64'h8899AABBCCDDEEFF;
 		tick(16'hFFFF);
@@ -852,6 +858,18 @@ module test_stage_d();
 		assert_vs1(64'h0000000000000000);
 		assert_vs2(64'hFFFFFFFF88888000);
 		assert_rd(29);
+		assert_alu_fn(`ALU_ADD);
+		assert_mem(0);
+		assert_cbranch(0);
+
+		// When executing AUIPC X2, 3, we expect X2 to be Rd, Vs1 to be
+		// the instruction's address, Vs2 to be the immediate provided,
+		// and the ALU forced to add.
+		f_dat_o <= 32'b0000_0000_0000_0000_0001_00010_0010111;
+		tick(16'h0800);
+		assert_vs1(64'hFFFFFFFFFFFFFF00);
+		assert_vs2(64'h0000000000001000);
+		assert_rd(2);
 		assert_alu_fn(`ALU_ADD);
 		assert_mem(0);
 		assert_cbranch(0);
