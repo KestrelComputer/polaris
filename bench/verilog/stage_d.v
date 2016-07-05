@@ -19,7 +19,7 @@ module stage_d(
 	// D-stage I/O
 	output	[63:0]	d_vs1_o,	// Contents of 1st operand (register or immediate as appropriate)
 	output	[63:0]	d_vs2_o,	// Contents of 2nd operand (register or immediate as appropriate)
-	output	[63:0]	d_vs3_o,	// Contents of 3rd operand (usually for branches)
+	output	[63:0]	d_displacement_o,	// Branch displacement (if taken)
 	output	[4:0]	d_rd_o,		// Destination register for eventual write-back, or 0.
 	output	[3:0]	d_alu_o,	// ALU operation.  If none, ADD if usually a safe default.
 	output	[3:0]	d_mem_o,	// 0, 1, 2, 4, or 8.  0 for no memory access, otherwise indicates data width.
@@ -87,7 +87,7 @@ module stage_d(
 
 	// Steer control flow data to the third value bus.
 
-	assign d_vs3_o = (isBubble) ? 0 : disp13;
+	assign d_displacement_o = (isBubble) ? 0 : disp13;
 
 	// This signal instructs the execute stage to use the comparison set of
 	// operations, rather than the normal op-imm or op-reg operations.
@@ -142,7 +142,7 @@ module test_stage_d();
 	reg [63:0] w_dat2_o;		// Register file's concept of register 2's value.
 	wire [63:0] vs1_i;		// Contents of register Rs1 or immediate, as appropriate
 	wire [63:0] vs2_i;		// Contents of register Rs2 or immediate, as appropriate
-	wire [63:0] vs3_i;		// Third operand
+	wire [63:0] displacement_i;		// Branch displacement
 	wire [3:0] d_alu_i;
 	wire [3:0] d_mem_i;
 	wire d_signed_i;
@@ -161,7 +161,7 @@ module test_stage_d();
 		.w_dat2_i(w_dat2_o),
 		.d_vs1_o(vs1_i),
 		.d_vs2_o(vs2_i),
-		.d_vs3_o(vs3_i),
+		.d_displacement_o(displacement_i),
 		.d_alu_o(d_alu_i),
 		.d_mem_o(d_mem_i),
 		.d_signed_o(d_signed_i),
@@ -235,11 +235,11 @@ module test_stage_d();
 	end
 	endtask
 
-	task assert_vs3;
+	task assert_displacement;
 	input [63:0] expected;
 	begin
-		if(vs3_i !== expected) begin
-			$display("@E %04X Expected Vs3=$%016X; got Vs3=%016X", story_o, expected, vs3_i);
+		if(displacement_i !== expected) begin
+			$display("@E %04X Expected Vs3=$%016X; got Vs3=%016X", story_o, expected, displacement_i);
 			$stop;
 		end
 	end
@@ -778,7 +778,7 @@ module test_stage_d();
 		assert_vs1(64'h0011223344556677);
 		assert_vs2(64'h8899AABBCCDDEEFF);
 		assert_rd(0);
-		assert_vs3(64'h0000000000000008);
+		assert_displacement(64'h0000000000000008);
 		assert_alu_fn(`ALU_C_SEQ);
 		assert_mem(0);
 		assert_cbranch(1);
@@ -790,7 +790,7 @@ module test_stage_d();
 		assert_vs1(64'h0011223344556677);
 		assert_vs2(64'h8899AABBCCDDEEFF);
 		assert_rd(0);
-		assert_vs3(64'hFFFFFFFFFFFFF808);
+		assert_displacement(64'hFFFFFFFFFFFFF808);
 		assert_alu_fn(`ALU_C_SEQ);
 		assert_mem(0);
 		assert_cbranch(1);
@@ -804,7 +804,7 @@ module test_stage_d();
 		assert_vs1(64'h0011223344556677);
 		assert_vs2(64'h8899AABBCCDDEEFF);
 		assert_rd(0);
-		assert_vs3(64'h0000000000000008);
+		assert_displacement(64'h0000000000000008);
 		assert_alu_fn(`ALU_C_SNE);
 		assert_mem(0);
 		assert_cbranch(1);
@@ -818,7 +818,7 @@ module test_stage_d();
 		assert_vs1(64'h0011223344556677);
 		assert_vs2(64'h8899AABBCCDDEEFF);
 		assert_rd(0);
-		assert_vs3(64'h0000000000000008);
+		assert_displacement(64'h0000000000000008);
 		assert_alu_fn(`ALU_C_SLT);
 		assert_mem(0);
 		assert_cbranch(1);
@@ -832,7 +832,7 @@ module test_stage_d();
 		assert_vs1(64'h0011223344556677);
 		assert_vs2(64'h8899AABBCCDDEEFF);
 		assert_rd(0);
-		assert_vs3(64'h0000000000000008);
+		assert_displacement(64'h0000000000000008);
 		assert_alu_fn(`ALU_C_SGE);
 		assert_mem(0);
 		assert_cbranch(1);
@@ -846,7 +846,7 @@ module test_stage_d();
 		assert_vs1(64'h0011223344556677);
 		assert_vs2(64'h8899AABBCCDDEEFF);
 		assert_rd(0);
-		assert_vs3(64'h0000000000000008);
+		assert_displacement(64'h0000000000000008);
 		assert_alu_fn(`ALU_C_SLTU);
 		assert_mem(0);
 		assert_cbranch(1);
@@ -860,7 +860,7 @@ module test_stage_d();
 		assert_vs1(64'h0011223344556677);
 		assert_vs2(64'h8899AABBCCDDEEFF);
 		assert_rd(0);
-		assert_vs3(64'h0000000000000008);
+		assert_displacement(64'h0000000000000008);
 		assert_alu_fn(`ALU_C_SGEU);
 		assert_mem(0);
 		assert_cbranch(1);
