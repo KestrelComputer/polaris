@@ -313,6 +313,8 @@ module test_stage_d();
 		w_dat2_o <= 64'h8899AABBCCDDEEFF;
 		tick(16'hFFFF);
 
+		// ====== RESET BEHAVIOR
+
 		// During reset, the result of the instruction decoder must be a bubble.
 		reset_o <= 1;
 		tick(16'h0000);
@@ -323,6 +325,8 @@ module test_stage_d();
 		f_ack_o <= 0;
 		tick(16'h0100);
 		assert_bubble();
+
+		// ====== ALU CONFIGURATION
 
 		// When executing ADDI X2, X3, 4, we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be 4.
@@ -585,6 +589,8 @@ module test_stage_d();
 		assert_mem(0);
 		assert_cbranch(0);
 
+		// ====== MEMORY ACCESSORS
+
 		// When executing LB X2, 4(X3), we expect X2 to be the
 		// destination, Vs1 to hold the value of X3, and Vs2 to be the
 		// value 4.
@@ -769,6 +775,8 @@ module test_stage_d();
 		assert_isStore(1);
 		assert_cbranch(0);
 
+		// ====== CONDITIONAL BRANCHES
+
 		// When executing BEQ X2, X3, 8, we expect X2 to be Rs1,
 		// X3 to be Rs2, and 8 to appear on the Vs3 bus.
 		f_dat_o <= 32'b0000000_00011_00010_000_01000_1100011;
@@ -865,6 +873,8 @@ module test_stage_d();
 		assert_mem(0);
 		assert_cbranch(1);
 
+		// ====== LUI and AUIPC
+
 		// When executing LUI X2, 3, we expect X2 to be Rd,
 		// Vs1 to be zero, Vs2 to be the immediate provided,
 		// and the ALU forced to add.
@@ -899,26 +909,18 @@ module test_stage_d();
 		assert_cbranch(0);
 
 		// When JALR X2, 12(X3) is executed, we expect:
-		// - X2 is the destination register.  It will receive the value PC+4.
-		// - Vs1 carries the value of X3.
-		// - Vs2 carries the value 12.
-		// - Vs3 carries the value 4 (displacement from the instruction address).
-		// - d_ia_o equals instruction address.
-		// - ALU is told to add.  The sum will eventually be loaded into the PC.
-		//
-		// d_ia_o + Vs3 is placed into Rd, while Vs1 + Vs2 is placed
-		// into PC.  That's the plan, at least.
+		// - X2 is the destination register.  Its value will be set to PC+4.
+		// - vs1 *and* vs2 carries the value of X3.
+		// - displacement (not vs1!) carries the value 12.
+		// - ALU is told to set-equal.  This guarantees a true result, thus unconditional branch.
+		// - cbranch is 1.
 
 		// When JAL X2, labelAddr is executed, we expect:
-		// - X2 is the destination register.  It will receive the value PC+4.
-		// - Vs1 equals the instruction address.
-		// - Vs2 equals the displacement.
-		// - Vs3 carries the value 4 (displacement from the instruction address).
-		// - d_ia_o equals instruction address.
-		// - ALU is told to add.  The sum will eventually be loaded into the PC.
-		//
-		// d_ia_o + Vs3 is placed into Rd, while Vs1 + Vs2 is placed
-		// into PC.  That's the plan, at least.
+		// - X2 is the destination register.  Its value will be set to PC+4.
+		// - vs1 *and* vs2 carries the value of PC.
+		// - displacement (not vs1!) carries the value 12.
+		// - ALU is told to set-equal.  This guarantees a true result, thus unconditional branch.
+		// - cbranch is 1.
 
 		$display("@I Done.");
 		$stop;
