@@ -49,20 +49,21 @@
 // conjunction with the appropriate CYC_O bits.
 
 module stage_m(
-	input	[3:0]	x_cyc_i,	// Memory cycle request from execute stage.
-	input	[63:0]	x_alu_i,	// Result from ALU in execute stage.
+	input	[3:0]	x_cyc_i,		// Memory cycle request from execute stage.
+	input	[63:0]	x_alu_i,		// Result from ALU in execute stage.
 	input	[4:0]	x_destination_i,	// Destination register specifier.
 
+	input		m_unsigned_i,		// 1 if reading an unsigned value.
 	output	[4:0]	m_destination_o,	// Destination register specifier.
-	output	[3:0]	m_cyc_o,	// Similar to Wishbone MASTER cycle request.
-	output	[63:0]	m_adr_o,	// Wishbone MASTER address bus.
-	input	[63:0]	m_dat_i,	// Wishbone MASTER data input from external memory.
-	output	[63:0]	m_result_o,	// Result to writeback stage.
+	output	[3:0]	m_cyc_o,		// Similar to Wishbone MASTER cycle request.
+	output	[63:0]	m_adr_o,		// Wishbone MASTER address bus.
+	input	[63:0]	m_dat_i,		// Wishbone MASTER data input from external memory.
+	output	[63:0]	m_result_o,		// Result to writeback stage.
 
-	input		clk_i,		// Wishbone SYSCON clock.
-	input		reset_i		// Wishbone SYSCON clock.
+	input		clk_i,			// Wishbone SYSCON clock.
+	input		reset_i			// Wishbone SYSCON clock.
 );
-	reg m_cyc_o;
+	reg [3:0] m_cyc_o;
 	always @(posedge clk_i) begin
 		m_cyc_o <= (reset_i) ? 0 : x_cyc_i;
 	end
@@ -77,7 +78,23 @@ module stage_m(
 		m_destination_o <= x_destination_i;
 	end
 
-	assign m_result_o = (m_cyc_o)? m_dat_i : x_alu_i;
+	wire [63:0] unsigned_byte = {56'd0, m_dat_i[7:0]};
+	wire [63:0] signed_byte = {{56{m_dat_i[7]}}, m_dat_i[7:0]};
+	wire [63:0] unsigned_hword = {48'd0, m_dat_i[15:0]};
+	wire [63:0] signed_hword = {{48{m_dat_i[15]}}, m_dat_i[15:0]};
+	wire [63:0] unsigned_word = {32'd0, m_dat_i[31:0]};
+	wire [63:0] signed_word = {{32{m_dat_i[31]}}, m_dat_i[31:0]};
+
+	wire [63:0] data_from_memory =	(m_cyc_o[0] & m_unsigned_i) ? unsigned_byte :
+					(m_cyc_o[0] & ~m_unsigned_i) ? signed_byte :
+					(m_cyc_o[1] & m_unsigned_i) ? unsigned_hword :
+					(m_cyc_o[1] & ~m_unsigned_i) ? signed_hword :
+					(m_cyc_o[2] & m_unsigned_i) ? unsigned_word :
+					(m_cyc_o[2] & ~m_unsigned_i) ? signed_word :
+					m_dat_i;
+
+	assign m_result_o = (|m_cyc_o) ? data_from_memory : m_adr_o;
+
 endmodule
 
 // This module exercises the memory pipeline logic.
@@ -96,6 +113,7 @@ module test_stage_m();
 	reg [63:0] m_dat_o;		// 64-bit input data bus driver.
 	reg [4:0] x_destination_o;	// Destination register specifier.
 	wire [4:0] m_destination_i;
+	reg m_unsigned_o;		// True if unsigned read in progress.
 
 	stage_m m(
 		.clk_i(clk_o),
@@ -103,6 +121,7 @@ module test_stage_m();
 		.x_cyc_i(x_cyc_o),
 		.x_alu_i(x_alu_o),
 		.x_destination_i(x_destination_o),
+		.m_unsigned_i(m_unsigned_o),
 		.m_destination_o(m_destination_i),
 		.m_dat_i(m_dat_o),
 		.m_result_o(m_result_i),
@@ -235,7 +254,7 @@ module test_stage_m();
 		// should only drive the address bus.  Any data present on the
 		// input data bus should be the result stored to the register
 		// file.
-		x_cyc_o <= 1;
+		x_cyc_o <= 8;
 		tick(16'h0410);
 		assert_address(64'h1122334455667788);
 		assert_result(64'h99AABBCCDDEEFF00);
@@ -243,14 +262,54 @@ module test_stage_m();
 		// When reading, 8-bit values should be signed or unsigned
 		// depending on which load instruction is being executed.
 		// Unsigned values are zero-extended.
+		x_cyc_o <= 1;
+		m_dat_o <= 64'h40;
+		m_unsigned_o <= 0;
+		tick(16'h0500);
+		assert_result(64'h0000_0000_0000_0040);
+
+		m_dat_o <= 64'h80;
+		tick(16'h0510);
+		assert_result(64'hFFFF_FFFF_FFFF_FF80);
+
+		m_unsigned_o <= 1;
+		tick(16'h0520);
+		assert_result(64'h0000_0000_0000_0080);
 
 		// When reading, 16-bit values should be signed or unsigned
 		// depending on which load instruction is being executed.
 		// Unsigned values are zero-extended.
+		x_cyc_o <= 2;
+		m_dat_o <= 64'h4000;
+		m_unsigned_o <= 0;
+		tick(16'h0600);
+		assert_result(64'h0000_0000_0000_4000);
+
+		m_dat_o <= 64'h8000;
+		tick(16'h0610);
+		assert_result(64'hFFFF_FFFF_FFFF_8000);
+
+		m_unsigned_o <= 1;
+		tick(16'h0620);
+		assert_result(64'h0000_0000_0000_8000);
+
 
 		// When reading, 32-bit values should be signed or unsigned
 		// depending on which load instruction is being executed.
 		// Unsigned values are zero-extended.
+		x_cyc_o <= 4;
+		m_dat_o <= 64'h40000000;
+		m_unsigned_o <= 0;
+		tick(16'h0700);
+		assert_result(64'h0000_0000_4000_0000);
+
+		m_dat_o <= 64'h80000000;
+		tick(16'h0710);
+		assert_result(64'hFFFF_FFFF_8000_0000);
+
+		m_unsigned_o <= 1;
+		tick(16'h0720);
+		assert_result(64'h0000_0000_8000_0000);
 
 		// When storing, the write-enable signal should be asserted.
 
