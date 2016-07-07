@@ -240,6 +240,26 @@ module test_stage_m();
 		assert_address(64'h1122334455667788);
 		assert_result(64'h99AABBCCDDEEFF00);
 
+		// When reading, 8-bit values should be signed or unsigned
+		// depending on which load instruction is being executed.
+		// Unsigned values are zero-extended.
+
+		// When reading, 16-bit values should be signed or unsigned
+		// depending on which load instruction is being executed.
+		// Unsigned values are zero-extended.
+
+		// When reading, 32-bit values should be signed or unsigned
+		// depending on which load instruction is being executed.
+		// Unsigned values are zero-extended.
+
+		// When storing, the write-enable signal should be asserted.
+
+		// When a cycle is not acknowledged, the entire pipeline must
+		// stall.
+
+		// When a cycle is not required, the acknowledge pin should be
+		// ignored.
+
 		$display("@I Done.");
 		$stop;
 	end
