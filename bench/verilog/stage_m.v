@@ -51,9 +51,13 @@
 module stage_m(
 	input	[3:0]	x_cyc_i,	// Memory cycle request from execute stage.
 	input	[63:0]	x_alu_i,	// Result from ALU in execute stage.
+	input	[4:0]	x_destination_i,	// Destination register specifier.
 
+	output	[4:0]	m_destination_o,	// Destination register specifier.
 	output	[3:0]	m_cyc_o,	// Similar to Wishbone MASTER cycle request.
 	output	[63:0]	m_adr_o,	// Wishbone MASTER address bus.
+	input	[63:0]	m_dat_i,	// Wishbone MASTER data input from external memory.
+	output	[63:0]	m_result_o,	// Result to writeback stage.
 
 	input		clk_i,		// Wishbone SYSCON clock.
 	input		reset_i		// Wishbone SYSCON clock.
@@ -67,26 +71,41 @@ module stage_m(
 	always @(posedge clk_i) begin
 		m_adr_o <= x_alu_i;
 	end
+
+	reg [4:0] m_destination_o;
+	always @(posedge clk_i) begin
+		m_destination_o <= x_destination_i;
+	end
+
+	assign m_result_o = (m_cyc_o)? m_dat_i : x_alu_i;
 endmodule
 
 // This module exercises the memory pipeline logic.
 
 module test_stage_m();
-	reg clk_o;		// Wishbone bus SYSCON clock.
-	reg reset_o;		// Wishbone bus SYSCON reset.
-	reg [15:0] story_o;	// Grep tag for when things go wrong.
+	reg clk_o;			// Wishbone bus SYSCON clock.
+	reg reset_o;			// Wishbone bus SYSCON reset.
+	reg [15:0] story_o;		// Grep tag for when things go wrong.
 
-	reg [3:0] x_cyc_o;	// 0, 1, 2, 4, or 8 only.
-	reg [63:0] x_alu_o;	// Effective address from the ALU.
+	reg [3:0] x_cyc_o;		// 0, 1, 2, 4, or 8 only.
+	reg [63:0] x_alu_o;		// Effective address from the ALU.
 
-	wire [3:0] m_cyc_i;	// CYC_O coming from M stage.
-	wire [63:0] m_adr_i;	// ADR_O coming from M stage.
+	wire [3:0] m_cyc_i;		// CYC_O coming from M stage.
+	wire [63:0] m_adr_i;		// ADR_O coming from M stage.
+	wire [63:0] m_result_i;		// ALU result or data input, depending on M_CYC_O.
+	reg [63:0] m_dat_o;		// 64-bit input data bus driver.
+	reg [4:0] x_destination_o;	// Destination register specifier.
+	wire [4:0] m_destination_i;
 
 	stage_m m(
 		.clk_i(clk_o),
 		.reset_i(reset_o),
 		.x_cyc_i(x_cyc_o),
 		.x_alu_i(x_alu_o),
+		.x_destination_i(x_destination_o),
+		.m_destination_o(m_destination_i),
+		.m_dat_i(m_dat_o),
+		.m_result_o(m_result_i),
 		.m_cyc_o(m_cyc_i),
 		.m_adr_o(m_adr_i)
 	);
@@ -109,11 +128,31 @@ module test_stage_m();
 	end
 	endtask
 
+	task assert_destination;
+	input [4:0] expected;
+	begin
+		if(m_destination_i !== expected) begin
+			$display("@E %04X Expected M_DESTINATION_O=%d; got %d", story_o, expected, m_destination_i);
+			$stop;
+		end
+	end
+	endtask
+
 	task assert_address;
 	input [63:0] expected;
 	begin
 		if(m_adr_i !== expected) begin
 			$display("@E %04X Expected M_ADR_O=$%016X, got $%016X", story_o, expected, m_adr_i);
+			$stop;
+		end
+	end
+	endtask
+
+	task assert_result;
+	input [63:0] expected;
+	begin
+		if(m_result_i !== expected) begin
+			$display("@E %04X Expected M_RESULT_O=$%016X, got $%016X", story_o, expected, m_result_i);
 			$stop;
 		end
 	end
@@ -132,19 +171,16 @@ module test_stage_m();
 		tick(16'h0000);
 		assert_cycle(0);
 
-		clk_o <= 0;
 		x_cyc_o <= 2;
 		reset_o <= 1;
 		tick(16'h0010);
 		assert_cycle(0);
 
-		clk_o <= 0;
 		x_cyc_o <= 4;
 		reset_o <= 1;
 		tick(16'h0020);
 		assert_cycle(0);
 
-		clk_o <= 0;
 		x_cyc_o <= 8;
 		reset_o <= 1;
 		tick(16'h0030);
@@ -185,6 +221,24 @@ module test_stage_m();
 
 		// If a memory cycle is not desired, then the ALU results
 		// should be delivered directly to the writeback stage.
+		// While we're at it, we make sure the writeback destination
+		// matches that supplied by the execute stage.
+		x_cyc_o <= 0;
+		m_dat_o <= 64'h99AABBCCDDEEFF00;
+		x_destination_o <= 4;
+		tick(16'h0400);
+		assert_address(64'h1122334455667788);
+		assert_result(64'h1122334455667788);
+		assert_destination(4);
+
+		// If a memory cycle is desired, however, the ALU results
+		// should only drive the address bus.  Any data present on the
+		// input data bus should be the result stored to the register
+		// file.
+		x_cyc_o <= 1;
+		tick(16'h0410);
+		assert_address(64'h1122334455667788);
+		assert_result(64'h99AABBCCDDEEFF00);
 
 		$display("@I Done.");
 		$stop;
