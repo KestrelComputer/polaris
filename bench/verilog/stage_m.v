@@ -51,7 +51,7 @@
 module stage_m(
 	input	[3:0]	m_cyc_i,		// Memory cycle request from execute stage.
 	input	[63:0]	m_alu_i,		// Result from ALU in execute stage.
-	input	[4:0]	x_destination_i,	// Destination register specifier.
+	input	[4:0]	m_destination_i,	// Destination register specifier.
 
 	input		m_store_i,		// 1 if processing a store instruction.
 	output		m_we_o,			// 1 if writing to memory.
@@ -79,7 +79,7 @@ module stage_m(
 
 	reg [4:0] m_destination_o;
 	always @(posedge clk_i) begin
-		m_destination_o <= x_destination_i;
+		m_destination_o <= m_destination_i;
 	end
 
 	wire [63:0] unsigned_byte = {56'd0, m_dat_i[7:0]};
@@ -137,7 +137,7 @@ module test_stage_m();
 		.reset_i(reset_o),
 		.m_cyc_i(m_cyc_o),
 		.m_alu_i(m_alu_o),
-		.x_destination_i(m_destination_o),
+		.m_destination_i(m_destination_o),
 		.m_wrdata_i(m_wrdata_o),
 		.m_dat_o(m_dat_i),
 		.m_we_o(m_we_i),
