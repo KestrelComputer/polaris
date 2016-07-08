@@ -124,7 +124,7 @@ module test_stage_m();
 	wire [63:0] m_adr_i;		// ADR_O coming from M stage.
 	wire [63:0] m_result_i;		// ALU result or data input, depending on M_CYC_O.
 	reg [63:0] m_dat_o;		// 64-bit input data bus driver.
-	reg [4:0] x_destination_o;	// Destination register specifier.
+	reg [4:0] m_destination_o;	// Destination register specifier.
 	wire [4:0] m_destination_i;
 	reg m_unsigned_o;		// True if unsigned read in progress.
 	reg m_store_o;			// True if executing a store instruction.
@@ -137,7 +137,7 @@ module test_stage_m();
 		.reset_i(reset_o),
 		.m_cyc_i(m_cyc_o),
 		.x_alu_i(m_alu_o),
-		.x_destination_i(x_destination_o),
+		.x_destination_i(m_destination_o),
 		.m_wrdata_i(m_wrdata_o),
 		.m_dat_o(m_dat_i),
 		.m_we_o(m_we_i),
@@ -285,7 +285,7 @@ module test_stage_m();
 		// matches that supplied by the execute stage.
 		m_cyc_o <= 0;
 		m_dat_o <= 64'h99AABBCCDDEEFF00;
-		x_destination_o <= 4;
+		m_destination_o <= 4;
 		tick(16'h0400);
 		assert_address(64'h1122334455667788);
 		assert_result(64'h1122334455667788);
