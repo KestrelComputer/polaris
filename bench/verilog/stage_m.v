@@ -53,11 +53,15 @@ module stage_m(
 	input	[63:0]	x_alu_i,		// Result from ALU in execute stage.
 	input	[4:0]	x_destination_i,	// Destination register specifier.
 
+	input		m_store_i,		// 1 if processing a store instruction.
+	output		m_we_o,			// 1 if writing to memory.
 	input		m_unsigned_i,		// 1 if reading an unsigned value.
+	input	[63:0]	m_wrdata_i,		// Data to write (if any)
 	output	[4:0]	m_destination_o,	// Destination register specifier.
 	output	[3:0]	m_cyc_o,		// Similar to Wishbone MASTER cycle request.
 	output	[63:0]	m_adr_o,		// Wishbone MASTER address bus.
 	input	[63:0]	m_dat_i,		// Wishbone MASTER data input from external memory.
+	output	[63:0]	m_dat_o,		// Wishbone MASTER data output to external memory.
 	output	[63:0]	m_result_o,		// Result to writeback stage.
 
 	input		clk_i,			// Wishbone SYSCON clock.
@@ -95,6 +99,15 @@ module stage_m(
 
 	assign m_result_o = (|m_cyc_o) ? data_from_memory : m_adr_o;
 
+	reg m_we_o;
+	always @(posedge clk_i) begin
+		m_we_o <= m_store_i;
+	end
+
+	reg [63:0] m_dat_o;
+	always @(posedge clk_i) begin
+		m_dat_o <= m_wrdata_i;
+	end
 endmodule
 
 // This module exercises the memory pipeline logic.
@@ -114,6 +127,10 @@ module test_stage_m();
 	reg [4:0] x_destination_o;	// Destination register specifier.
 	wire [4:0] m_destination_i;
 	reg m_unsigned_o;		// True if unsigned read in progress.
+	reg m_store_o;			// True if executing a store instruction.
+	wire m_we_i;
+	reg [63:0] m_wrdata_o;		// The data to write to memory, from execute stage.
+	wire [63:0] m_dat_i;		// Wishbone bus MASTER write data.
 
 	stage_m m(
 		.clk_i(clk_o),
@@ -121,6 +138,10 @@ module test_stage_m();
 		.x_cyc_i(x_cyc_o),
 		.x_alu_i(x_alu_o),
 		.x_destination_i(x_destination_o),
+		.m_wrdata_i(m_wrdata_o),
+		.m_dat_o(m_dat_i),
+		.m_we_o(m_we_i),
+		.m_store_i(m_store_o),
 		.m_unsigned_i(m_unsigned_o),
 		.m_destination_o(m_destination_i),
 		.m_dat_i(m_dat_o),
@@ -172,6 +193,26 @@ module test_stage_m();
 	begin
 		if(m_result_i !== expected) begin
 			$display("@E %04X Expected M_RESULT_O=$%016X, got $%016X", story_o, expected, m_result_i);
+			$stop;
+		end
+	end
+	endtask
+
+	task assert_write;
+	input expected;
+	begin
+		if(m_we_i !== expected) begin
+			$display("@E %04X Expected M_WE_O=%d, got %d", story_o, expected, m_we_i);
+			$stop;
+		end
+	end
+	endtask
+
+	task assert_written;
+	input [63:0] expected;
+	begin
+		if(m_dat_i !== expected) begin
+			$display("@E %04X Expected M_DAT_O=$%016X, got $%016X", story_o, expected, m_dat_i);
 			$stop;
 		end
 	end
@@ -312,6 +353,22 @@ module test_stage_m();
 		assert_result(64'h0000_0000_8000_0000);
 
 		// When storing, the write-enable signal should be asserted.
+		m_store_o <= 1;
+		tick(16'h0800);
+		assert_write(1);
+
+		m_store_o <= 0;
+		tick(16'h0810);
+		assert_write(0);
+
+		// When storing, the data presented on m_dat_o must be equal to
+		// the value appearing on m_wrdata_i.
+		m_wrdata_o <= 64'h0011223344556677;
+		m_store_o <= 1;
+		x_cyc_o <= 4;
+		m_dat_o <= 64'h8899AABBCCDDEEFF;
+		tick(16'h0900);
+		assert_written(64'h0011223344556677);
 
 		// When a cycle is not acknowledged, the entire pipeline must
 		// stall.
