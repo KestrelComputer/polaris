@@ -118,7 +118,7 @@ module test_stage_m();
 	reg [15:0] story_o;		// Grep tag for when things go wrong.
 
 	reg [3:0] m_cyc_o;		// 0, 1, 2, 4, or 8 only.
-	reg [63:0] x_alu_o;		// Effective address from the ALU.
+	reg [63:0] m_alu_o;		// Effective address from the ALU.
 
 	wire [3:0] m_cyc_i;		// CYC_O coming from M stage.
 	wire [63:0] m_adr_i;		// ADR_O coming from M stage.
@@ -136,7 +136,7 @@ module test_stage_m();
 		.clk_i(clk_o),
 		.reset_i(reset_o),
 		.m_cyc_i(m_cyc_o),
-		.x_alu_i(x_alu_o),
+		.x_alu_i(m_alu_o),
 		.x_destination_i(x_destination_o),
 		.m_wrdata_i(m_wrdata_o),
 		.m_dat_o(m_dat_i),
@@ -274,7 +274,7 @@ module test_stage_m();
 		assert_cycle(8);
 
 		// M_ADR_O should be the complete 64-bit result of the ALU.
-		x_alu_o <= 64'h1122334455667788;
+		m_alu_o <= 64'h1122334455667788;
 		tick(16'h0300);
 		assert_address(64'h1122334455667788);
 		assert_cycle(8);
