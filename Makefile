@@ -28,6 +28,6 @@ test_stage_d: bench/verilog/stage_d.v # rtl/verilog/stage_d.v
 	$(SIM) bench/verilog/stage_d.v # rtl/verilog/stage_d.v
 	vvp -n a.out
 
-test_stage_m: bench/verilog/stage_m.v # rtl/verilog/stage_m.v
-	$(SIM) bench/verilog/stage_m.v # rtl/verilog/stage_m.v
+test_stage_m: bench/verilog/stage_m.v rtl/verilog/stage_m.v
+	$(SIM) bench/verilog/stage_m.v rtl/verilog/stage_m.v
 	vvp -n a.out
