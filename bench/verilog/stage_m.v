@@ -62,24 +62,37 @@ module stage_m(
 	output	[63:0]	m_adr_o,		// Wishbone MASTER address bus.
 	input	[63:0]	m_dat_i,		// Wishbone MASTER data input from external memory.
 	output	[63:0]	m_dat_o,		// Wishbone MASTER data output to external memory.
+	input		m_ack_i,		// Wishbone MASTER acknowledge input.
+	output		m_stall_o,		// True iff the pipeline should hold its current state.
 	output	[63:0]	m_result_o,		// Result to writeback stage.
 
 	input		clk_i,			// Wishbone SYSCON clock.
 	input		reset_i			// Wishbone SYSCON clock.
 );
 	reg [3:0] m_cyc_o;
-	always @(posedge clk_i) begin
-		m_cyc_o <= (reset_i) ? 0 : m_cyc_i;
-	end
-
 	reg [63:0] m_adr_o;
-	always @(posedge clk_i) begin
-		m_adr_o <= m_alu_i;
-	end
-
 	reg [4:0] m_destination_o;
+	reg m_we_o;
+	reg [63:0] m_dat_o;
+	reg m_stall_o;
+	wire hold = ~m_ack_i & |m_cyc_o;
+	always @(*) begin
+		m_stall_o <= hold;
+	end
 	always @(posedge clk_i) begin
-		m_destination_o <= m_destination_i;
+		if(m_stall_o) begin
+			m_cyc_o <= (reset_i) ? 0 : m_cyc_o;
+			m_adr_o <= m_adr_o;
+			m_destination_o <= m_destination_o;
+			m_we_o <= m_we_o;
+			m_dat_o <= m_dat_o;
+		end else begin
+			m_cyc_o <= (reset_i) ? 0 : m_cyc_i;
+			m_adr_o <= m_alu_i;
+			m_destination_o <= m_destination_i;
+			m_we_o <= m_store_i;
+			m_dat_o <= m_wrdata_i;
+		end
 	end
 
 	wire [63:0] unsigned_byte = {56'd0, m_dat_i[7:0]};
@@ -98,16 +111,6 @@ module stage_m(
 					m_dat_i;
 
 	assign m_result_o = (|m_cyc_o) ? data_from_memory : m_adr_o;
-
-	reg m_we_o;
-	always @(posedge clk_i) begin
-		m_we_o <= m_store_i;
-	end
-
-	reg [63:0] m_dat_o;
-	always @(posedge clk_i) begin
-		m_dat_o <= m_wrdata_i;
-	end
 endmodule
 
 // This module exercises the memory pipeline logic.
@@ -131,16 +134,20 @@ module test_stage_m();
 	wire m_we_i;
 	reg [63:0] m_wrdata_o;		// The data to write to memory, from execute stage.
 	wire [63:0] m_dat_i;		// Wishbone bus MASTER write data.
+	reg m_ack_o;			// Wishbone bus MASTER acknowledgement input.
+	wire m_stall_i;			// True iff the pipeline should be stalled.
 
 	stage_m m(
 		.clk_i(clk_o),
 		.reset_i(reset_o),
 		.m_cyc_i(m_cyc_o),
 		.m_alu_i(m_alu_o),
+		.m_stall_o(m_stall_i),
 		.m_destination_i(m_destination_o),
 		.m_wrdata_i(m_wrdata_o),
 		.m_dat_o(m_dat_i),
 		.m_we_o(m_we_i),
+		.m_ack_i(m_ack_o),
 		.m_store_i(m_store_o),
 		.m_unsigned_i(m_unsigned_o),
 		.m_destination_o(m_destination_i),
@@ -218,6 +225,16 @@ module test_stage_m();
 	end
 	endtask
 
+	task assert_stall;
+	input expected;
+	begin
+		if(m_stall_i !== expected) begin
+			$display("@E %04X Expected M_STALL_O=%d, got %d", story_o, expected, m_stall_i);
+			$stop;
+		end
+	end
+	endtask
+
 	always begin
 		#20 clk_o <= ~clk_o;
 	end
@@ -226,6 +243,7 @@ module test_stage_m();
 		// During reset, regardless of whether or not a memory cycle
 		// was in progress or not, we expect M_CYC_O to be negated.
 		clk_o <= 0;
+		m_ack_o <= 1;
 		m_cyc_o <= 1;
 		reset_o <= 1;
 		tick(16'h0000);
@@ -367,14 +385,43 @@ module test_stage_m();
 		m_store_o <= 1;
 		m_cyc_o <= 4;
 		m_dat_o <= 64'h8899AABBCCDDEEFF;
+		m_unsigned_o <= 0;
 		tick(16'h0900);
 		assert_written(64'h0011223344556677);
+		assert_result(64'hFFFFFFFFCCDDEEFF);
 
 		// When a cycle is not acknowledged, the entire pipeline must
-		// stall.
+		// stall.  This necessarily includes instruction fetch, of
+		// course.
+		m_cyc_o <= 1;
+		m_ack_o <= 1;
+		m_alu_o <= 64'h0011223344556677;
+		m_destination_o <= 14;
+		tick(16'h0A00);
+		assert_stall(0);
+		assert_address(64'h0011223344556677);
+		assert_result(64'hFFFFFFFFFFFFFFFF);
+		assert_destination(14);
+
+		m_ack_o <= 0;
+		m_alu_o <= 64'h8899AABBCCDDEEFF;
+		m_destination_o <= 31;
+		tick(16'h0A10);
+		assert_stall(1);
+		assert_address(64'h0011223344556677);
+		assert_result(64'hFFFFFFFFFFFFFFFF);
+		assert_destination(14);
 
 		// When a cycle is not required, the acknowledge pin should be
 		// ignored.
+		m_cyc_o <= 0;
+		m_ack_o <= 1;
+		tick(16'h0B00);
+		assert_stall(0);
+
+		m_ack_o <= 0;
+		tick(16'h0B10);
+		assert_stall(0);
 
 		$display("@I Done.");
 		$stop;
