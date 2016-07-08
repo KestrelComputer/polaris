@@ -49,7 +49,7 @@
 // conjunction with the appropriate CYC_O bits.
 
 module stage_m(
-	input	[3:0]	x_cyc_i,		// Memory cycle request from execute stage.
+	input	[3:0]	m_cyc_i,		// Memory cycle request from execute stage.
 	input	[63:0]	x_alu_i,		// Result from ALU in execute stage.
 	input	[4:0]	x_destination_i,	// Destination register specifier.
 
@@ -69,7 +69,7 @@ module stage_m(
 );
 	reg [3:0] m_cyc_o;
 	always @(posedge clk_i) begin
-		m_cyc_o <= (reset_i) ? 0 : x_cyc_i;
+		m_cyc_o <= (reset_i) ? 0 : m_cyc_i;
 	end
 
 	reg [63:0] m_adr_o;
@@ -117,7 +117,7 @@ module test_stage_m();
 	reg reset_o;			// Wishbone bus SYSCON reset.
 	reg [15:0] story_o;		// Grep tag for when things go wrong.
 
-	reg [3:0] x_cyc_o;		// 0, 1, 2, 4, or 8 only.
+	reg [3:0] m_cyc_o;		// 0, 1, 2, 4, or 8 only.
 	reg [63:0] x_alu_o;		// Effective address from the ALU.
 
 	wire [3:0] m_cyc_i;		// CYC_O coming from M stage.
@@ -135,7 +135,7 @@ module test_stage_m();
 	stage_m m(
 		.clk_i(clk_o),
 		.reset_i(reset_o),
-		.x_cyc_i(x_cyc_o),
+		.m_cyc_i(m_cyc_o),
 		.x_alu_i(x_alu_o),
 		.x_destination_i(x_destination_o),
 		.m_wrdata_i(m_wrdata_o),
@@ -226,29 +226,29 @@ module test_stage_m();
 		// During reset, regardless of whether or not a memory cycle
 		// was in progress or not, we expect M_CYC_O to be negated.
 		clk_o <= 0;
-		x_cyc_o <= 1;
+		m_cyc_o <= 1;
 		reset_o <= 1;
 		tick(16'h0000);
 		assert_cycle(0);
 
-		x_cyc_o <= 2;
+		m_cyc_o <= 2;
 		reset_o <= 1;
 		tick(16'h0010);
 		assert_cycle(0);
 
-		x_cyc_o <= 4;
+		m_cyc_o <= 4;
 		reset_o <= 1;
 		tick(16'h0020);
 		assert_cycle(0);
 
-		x_cyc_o <= 8;
+		m_cyc_o <= 8;
 		reset_o <= 1;
 		tick(16'h0030);
 		assert_cycle(0);
 
 		// After reset, M_CYC_O should remain negated (since X-stage
 		// CYC_O should also be negated).
-		x_cyc_o <= 0;
+		m_cyc_o <= 0;
 		reset_o <= 0;
 		tick(16'h0100);
 		assert_cycle(0);
@@ -257,19 +257,19 @@ module test_stage_m();
 
 		// M_CYC_O should be asserted when the execute stage is done
 		// with an effective address calculation.
-		x_cyc_o <= 1;
+		m_cyc_o <= 1;
 		tick(16'h0200);
 		assert_cycle(1);
 
-		x_cyc_o <= 2;
+		m_cyc_o <= 2;
 		tick(16'h0210);
 		assert_cycle(2);
 
-		x_cyc_o <= 4;
+		m_cyc_o <= 4;
 		tick(16'h0220);
 		assert_cycle(4);
 
-		x_cyc_o <= 8;
+		m_cyc_o <= 8;
 		tick(16'h0230);
 		assert_cycle(8);
 
@@ -283,7 +283,7 @@ module test_stage_m();
 		// should be delivered directly to the writeback stage.
 		// While we're at it, we make sure the writeback destination
 		// matches that supplied by the execute stage.
-		x_cyc_o <= 0;
+		m_cyc_o <= 0;
 		m_dat_o <= 64'h99AABBCCDDEEFF00;
 		x_destination_o <= 4;
 		tick(16'h0400);
@@ -295,7 +295,7 @@ module test_stage_m();
 		// should only drive the address bus.  Any data present on the
 		// input data bus should be the result stored to the register
 		// file.
-		x_cyc_o <= 8;
+		m_cyc_o <= 8;
 		tick(16'h0410);
 		assert_address(64'h1122334455667788);
 		assert_result(64'h99AABBCCDDEEFF00);
@@ -303,7 +303,7 @@ module test_stage_m();
 		// When reading, 8-bit values should be signed or unsigned
 		// depending on which load instruction is being executed.
 		// Unsigned values are zero-extended.
-		x_cyc_o <= 1;
+		m_cyc_o <= 1;
 		m_dat_o <= 64'h40;
 		m_unsigned_o <= 0;
 		tick(16'h0500);
@@ -320,7 +320,7 @@ module test_stage_m();
 		// When reading, 16-bit values should be signed or unsigned
 		// depending on which load instruction is being executed.
 		// Unsigned values are zero-extended.
-		x_cyc_o <= 2;
+		m_cyc_o <= 2;
 		m_dat_o <= 64'h4000;
 		m_unsigned_o <= 0;
 		tick(16'h0600);
@@ -338,7 +338,7 @@ module test_stage_m();
 		// When reading, 32-bit values should be signed or unsigned
 		// depending on which load instruction is being executed.
 		// Unsigned values are zero-extended.
-		x_cyc_o <= 4;
+		m_cyc_o <= 4;
 		m_dat_o <= 64'h40000000;
 		m_unsigned_o <= 0;
 		tick(16'h0700);
@@ -365,7 +365,7 @@ module test_stage_m();
 		// the value appearing on m_wrdata_i.
 		m_wrdata_o <= 64'h0011223344556677;
 		m_store_o <= 1;
-		x_cyc_o <= 4;
+		m_cyc_o <= 4;
 		m_dat_o <= 64'h8899AABBCCDDEEFF;
 		tick(16'h0900);
 		assert_written(64'h0011223344556677);
