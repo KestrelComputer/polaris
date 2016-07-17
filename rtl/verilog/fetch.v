@@ -12,13 +12,16 @@ module fetch(
 	input			defined_i,
 	input			pause_i,
 	input			reset_i,
+	input			irq_i,
 	output		[1:0]	size_o,
 	output reg	[31:0]	ir_o,
 	output		[63:0]	adr_o,
 	output			mpie_mie_o,
 	output			mie_0_o,
 	output			mcause_2_o,
-	output			vpa_o
+	output			vpa_o,
+	output			mcause_11_o,
+	output			mcause_irq_o
 );
 	// The instruction fetcher needs to know from where to fetch the next
 	// instruction.  This is the purpose of the NPC register.
@@ -164,11 +167,21 @@ module fetch(
 	wire fire11 = (~reset_i) & pause_i & s5;
 	wire fire12 = (~reset_i) & (~pause_i) & s5;
 
+	// This rule fires when a pending interrupt is waiting for service
+	// and we've just started an instruction fetch cycle.  At this point,
+	// CPC refers to the interrupted instruction, since we're not going to be executing it right now.
+	// Instead, we're going to divert to the trap handler.
+	//
+	// NOTE: To prevent infinite loops, the irq_i should be assigned as follows:
+	//	irq_i = mip_meip & mie_meie & mstatus_mie
+
+	wire fire13 = (~reset_i) & irq_i & s0;
+
 	// Depending on which state case is firing at the moment,
 	// we want to set our next state in a sensible way.
 
 	wire [2:0] next_state =
-		(fire0 | fire2 | fire3) ? 1 :
+		(fire0 | fire2 | fire3 | fire13) ? 1 :
 		(fire4) ? 2 :
 		(fire5 | fire6) ? 3 :
 		(fire8 | fire9) ? 4 :
@@ -178,31 +191,34 @@ module fetch(
 
 	assign ADR_NPC = fire2 | fire3 | fire4;
 	assign ADR_NPCp2 = |{fire5, fire6, fire7, fire8};
-	wire is_opcode_fetch = |{fire0, fire2, fire3, fire4, fire5, fire6, fire7, fire8};
+	wire is_opcode_fetch = |{fire0, fire2, fire3, fire4, fire5, fire6, fire7, fire8, fire13};
 	assign SIZE_2 = is_opcode_fetch;
 
 	assign vpa_o = is_opcode_fetch;
 
 	// If we hit an undefined instruction, we want to take the exception.
 
-	assign ADR_MTVEC = fire0;
-	assign NPC_MTVEC = fire0;
+	assign ADR_MTVEC = fire0 | fire13;
+	assign NPC_MTVEC = fire0 | fire13;
 
 	// Whenever we handle an exception, we must set MEPC to either the CPC
 	// or to the NPC, depending on the nature of the exception.
 
-	assign MEPC_CPC = fire0;
+	assign MEPC_CPC = fire0 | fire13;
 
 	// For every exception, we enter machine-mode, and that means turning
 	// off machine-mode interrupts.  We also need to preserve the previous
 	// setting.
 
-	assign mpie_mie_o = fire0;
-	assign mie_0_o = fire0;
+	assign mpie_mie_o = fire0 | fire13;
+	assign mie_0_o = fire0 | fire13;
 
 	// Every exception has a cause.  This logic figures out what it is.
 
 	assign mcause_2_o = fire0;
+	assign mcause_11_o = fire13;
+
+	assign mcause_irq_o = fire13;
 
 	// We trigger updates to IRL and IRH only at the appropriate times.
 	// Note that we can also optimize out one cycle if we recognize when

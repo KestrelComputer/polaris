@@ -11,12 +11,15 @@ module test_fetch();
 	reg pause_o;
 	reg reset_o;
 	reg [63:2] csr_mtvec_o;
+	reg irq_o;
 	wire [1:0] size_i;
 	wire [31:0] ir_i;
 	wire [63:0] adr_i;
 	wire mpie_mie_i;
 	wire mie_0_i;
 	wire mcause_2_i;
+	wire mcause_11_i;
+	wire mcause_irq_i;
 
 	fetch f(
 		.ack_i(ack_o),
@@ -31,7 +34,10 @@ module test_fetch();
 		.csr_mtvec_i(csr_mtvec_o),
 		.mpie_mie_o(mpie_mie_i),
 		.mie_0_o(mie_0_i),
-		.mcause_2_o(mcause_2_i)
+		.mcause_2_o(mcause_2_i),
+		.irq_i(irq_o),
+		.mcause_11_o(mcause_11_i),
+		.mcause_irq_o(mcause_irq_i)
 	);
 
 	always begin
@@ -106,6 +112,26 @@ module test_fetch();
 	end
 	endtask
 
+	task assert_mcause_11;
+	input expected;
+	begin
+		if(mcause_11_i !== expected) begin
+			$display("@E %04X MCAUSE_11_O Expected=%d Got=%d", story_o, expected, mcause_11_i);
+			$stop;
+		end
+	end
+	endtask
+
+	task assert_mcause_irq;
+	input expected;
+	begin
+		if(mcause_irq_i !== expected) begin
+			$display("@E %04X MCAUSE_irq_O Expected=%d Got=%d", story_o, expected, mcause_irq_i);
+			$stop;
+		end
+	end
+	endtask
+
 	initial begin
 		clk_o <= 0;
 		reset_o <= 0;
@@ -113,6 +139,7 @@ module test_fetch();
 		defined_o <= 1;
 		pause_o <= 0;
 		csr_mtvec_o <= 62'b01110111011101110111011101110111011101110111011101110111011101;
+		irq_o <= 0;
 		tick(16'hFFFF);
 
 		// When the CPU is reset, the bus must be idle.
@@ -229,6 +256,42 @@ module test_fetch();
 		tick(16'h0310);
 		assert_adr(64'hFFFFFFFFFFFFFF04);
 		assert_ir(32'hBBBBAAAA);
+
+		// When an external interrupt happens, we want to dispatch to
+		// the configured trap handler after we complete the current
+		// instruction, but before we start the next.
+
+		assert_mpie_mie(0);
+		assert_mie_0(0);
+		assert_mcause_2(0);
+		assert_mcause_11(0);
+		assert_mcause_irq(0);
+		irq_o <= 1;
+		#1;
+		assert_mpie_mie(1);
+		assert_mie_0(1);
+		assert_mcause_2(0);
+		assert_mcause_11(1);
+		assert_mcause_irq(1);
+		tick(16'h0401);
+		assert_adr(64'h7777777777777774);
+		assert_mpie_mie(0);
+		assert_mie_0(0);
+		assert_mcause_2(0);
+		assert_mcause_11(0);
+		assert_mcause_irq(0);
+		dat_o <= 16'hCCCC;
+
+		tick(16'h0402);
+		tick(16'h0403);
+		dat_o <= 16'hDDDD;
+
+		tick(16'h0410);
+		defined_o <= 1;
+		#1;	// Give the processor some time to decode the "legal" instruction.
+		assert_ir(32'hDDDDCCCC);
+		assert_adr(64'h7777777777777778);
+
 		$display("@DONE");
 		$stop;
 	end
