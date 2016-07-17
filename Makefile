@@ -5,5 +5,5 @@ SIM=iverilog -I rtl/verilog
 test: fetch
 
 fetch:
-	$(SIM) -Wall bench/verilog/fetch.v
+	$(SIM) -Wall bench/verilog/fetch.v rtl/verilog/fetch.v
 	vvp -n a.out
