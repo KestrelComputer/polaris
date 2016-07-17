@@ -1,7 +1,9 @@
 SIM=iverilog -I rtl/verilog
 
-.PHONY: test
+.PHONY: test fetch
 
-test:
-	echo "hi"
+test: fetch
 
+fetch:
+	$(SIM) -Wall bench/verilog/fetch.v
+	vvp -n a.out
