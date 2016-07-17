@@ -182,6 +182,53 @@ module test_fetch();
 		assert_ir(32'hDDDDCCCC);
 		assert_adr(64'h7777777777777778);
 
+		// We expect the CPU to hold the state of the instruction fetch
+		// if more wait-states are needed.
+
+		reset_o <= 1;
+		tick(16'h03FF);
+
+		reset_o <= 0;
+		ack_o <= 0;
+		dat_o <= 16'hAAAA;
+		tick(16'h0300);
+		assert_adr(64'hFFFFFFFFFFFFFF00);
+		assert_size(2);
+		tick(16'h0301);
+		assert_adr(64'hFFFFFFFFFFFFFF00);
+		assert_size(2);
+		tick(16'h0341);
+		assert_adr(64'hFFFFFFFFFFFFFF00);
+		assert_size(2);
+		tick(16'h0381);
+		assert_adr(64'hFFFFFFFFFFFFFF00);
+		assert_size(2);
+		tick(16'h03C1);
+		assert_adr(64'hFFFFFFFFFFFFFF00);
+		assert_size(2);
+		ack_o <= 1;
+		tick(16'h0302);
+		assert_adr(64'hFFFFFFFFFFFFFF02);
+		assert_size(2);
+		ack_o <= 0;
+		dat_o <= 16'hBBBB;
+		tick(16'h0303);
+		assert_adr(64'hFFFFFFFFFFFFFF02);
+		assert_size(2);
+		tick(16'h0343);
+		assert_adr(64'hFFFFFFFFFFFFFF02);
+		assert_size(2);
+		tick(16'h0383);
+		assert_adr(64'hFFFFFFFFFFFFFF02);
+		assert_size(2);
+		tick(16'h03C3);
+		assert_adr(64'hFFFFFFFFFFFFFF02);
+		assert_size(2);
+		ack_o <= 1;
+
+		tick(16'h0310);
+		assert_adr(64'hFFFFFFFFFFFFFF04);
+		assert_ir(32'hBBBBAAAA);
 		$display("@DONE");
 		$stop;
 	end
