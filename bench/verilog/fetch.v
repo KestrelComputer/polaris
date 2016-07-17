@@ -17,35 +17,13 @@ module fetch(
 	output		[63:0]	adr_o,
 	output			mpie_mie_o,
 	output			mie_0_o,
-	output			mcause_2_o
+	output			mcause_2_o,
+	output			vpa_o
 );
-	// We multiplex all the different sources of addresses onto this
-	// address bus.  Sometimes, we'll need to pad bits to make things
-	// line up right.
-
-	assign adr_o =
-		(ADR_NPC) ? {r_npc, 2'b00} :
-		(ADR_NPCp2) ? {r_npc, 2'b10} :
-		(ADR_MTVEC) ? {csr_mtvec_i, 2'b00} :
-		64'd0;
-
 	// The instruction fetcher needs to know from where to fetch the next
 	// instruction.  This is the purpose of the NPC register.
 
 	reg [63:2] r_npc;
-
-	// The SIZE_O bus indicates how big the transfer size is, and
-	// how many data bits of the input data bus are going to be used.
-	// The meanings are:
-	//
-	//	00	No bus cycle in progress.
-	//	01	One byte is expected to appear on DAT_I[7:0]
-	//	10	Two bytes are expected to appear on DAT_I[15:0]
-	//	11	Unused; must never appear.
-
-	assign size_o =
-		(SIZE_2) ? 2'b10 :
-		2'b00;
 
 	// The instruction fetcher is a self-contained state machine.
 	// Some of the bits that determines the current state comes from
@@ -60,6 +38,36 @@ module fetch(
 	wire s3 = state == 3'b011;
 	wire s4 = state == 3'b100;
 	wire s5 = state == 3'b101;
+
+	// We fetch instructions in two halfwords, to accomodate the 16-bit
+	// external bus.  Eventually, these two parts will make it to the
+	// actual instruction register (IR).
+
+	reg [15:0] irl;
+	reg [15:0] irh;
+
+	// We multiplex all the different sources of addresses onto this
+	// address bus.  Sometimes, we'll need to pad bits to make things
+	// line up right.
+
+	assign adr_o =
+		(ADR_NPC) ? {r_npc, 2'b00} :
+		(ADR_NPCp2) ? {r_npc, 2'b10} :
+		(ADR_MTVEC) ? {csr_mtvec_i, 2'b00} :
+		64'd0;
+
+	// The SIZE_O bus indicates how big the transfer size is, and
+	// how many data bits of the input data bus are going to be used.
+	// The meanings are:
+	//
+	//	00	No bus cycle in progress.
+	//	01	One byte is expected to appear on DAT_I[7:0]
+	//	10	Two bytes are expected to appear on DAT_I[15:0]
+	//	11	Unused; must never appear.
+
+	assign size_o =
+		(SIZE_2) ? 2'b10 :
+		2'b00;
 
 	// This term discovers undefined or illegal instructions, and kicks off
 	// an illegal instruction trap.
@@ -150,10 +158,6 @@ module fetch(
 		(reset_i) ? 6 :		// Any unused state will work
 		0;
 
-always @(posedge clk_i or negedge clk_i) begin
-#6 $display("C%d ST=%d NS=%d F=%12b R%d D%d P%d A%d I%d H$%04X L$%04X HD%d LD%D", clk_i, state, next_state, {fire0, fire1, fire2, fire3, fire4,fire5,fire6,fire7,fire8,fire9,fire10,fire11,fire12}, reset_i, defined_i, pause_i, ack_i, IR_DAT_IRL, irh, irl, IRH_DAT, IRL_DAT);
-end
-
 	// We only want to apply the low halfword instruction address when
 	// fetching the low halfword of the next opcode.  Similarly, we
 	// only want to ask for the high halfword when we're ready.
@@ -162,7 +166,8 @@ end
 	wire ADR_NPCp2 = |{fire5, fire6, fire7, fire8};
 	wire is_opcode_fetch = |{fire0, fire2, fire3, fire4, fire5, fire6, fire7, fire8};
 	wire SIZE_2 = is_opcode_fetch;
-	wire VPA_O = is_opcode_fetch;
+
+	assign vpa_o = is_opcode_fetch;
 
 	// If we hit an undefined instruction, we want to take the exception.
 
@@ -184,13 +189,6 @@ end
 	// Every exception has a cause.  This logic figures out what it is.
 
 	wire mcause_2_o = fire0;
-
-	// We fetch instructions in two halfwords, to accomodate the 16-bit
-	// external bus.  Eventually, these two parts will make it to the
-	// actual instruction register (IR).
-
-	reg [15:0] irl;
-	reg [15:0] irh;
 
 	// We trigger updates to IRL and IRH only at the appropriate times.
 	// Note that we can also optimize out one cycle if we recognize when
@@ -237,7 +235,7 @@ end
 	wire [31:0] next_ir =
 		(reset_i) ? 32'h00000013 :
 		(IR_DAT_IRL) ? {dat_i, irl} :
-		ir;
+		ir_o;
 
 	always @(posedge clk_i) begin
 		irl <= next_irl;
