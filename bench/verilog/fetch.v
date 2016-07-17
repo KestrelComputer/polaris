@@ -46,6 +46,23 @@ module fetch(
 	reg [15:0] irl;
 	reg [15:0] irh;
 
+	// We only want to apply the low halfword instruction address when
+	// fetching the low halfword of the next opcode.  Similarly, we
+	// only want to ask for the high halfword when we're ready.
+
+	wire ADR_NPC;
+	wire ADR_NPCp2;
+
+	// If we hit an undefined instruction, we want to take the exception.
+
+	wire ADR_MTVEC;
+	wire NPC_MTVEC;
+
+	// Whenever we handle an exception, we must set MEPC to either the CPC
+	// or to the NPC, depending on the nature of the exception.
+
+	wire MEPC_CPC;
+
 	// We multiplex all the different sources of addresses onto this
 	// address bus.  Sometimes, we'll need to pad bits to make things
 	// line up right.
@@ -65,6 +82,7 @@ module fetch(
 	//	10	Two bytes are expected to appear on DAT_I[15:0]
 	//	11	Unused; must never appear.
 
+	wire SIZE_2;
 	assign size_o =
 		(SIZE_2) ? 2'b10 :
 		2'b00;
@@ -158,37 +176,33 @@ module fetch(
 		(reset_i) ? 6 :		// Any unused state will work
 		0;
 
-	// We only want to apply the low halfword instruction address when
-	// fetching the low halfword of the next opcode.  Similarly, we
-	// only want to ask for the high halfword when we're ready.
-
-	wire ADR_NPC = fire2 | fire3 | fire4;
-	wire ADR_NPCp2 = |{fire5, fire6, fire7, fire8};
+	assign ADR_NPC = fire2 | fire3 | fire4;
+	assign ADR_NPCp2 = |{fire5, fire6, fire7, fire8};
 	wire is_opcode_fetch = |{fire0, fire2, fire3, fire4, fire5, fire6, fire7, fire8};
-	wire SIZE_2 = is_opcode_fetch;
+	assign SIZE_2 = is_opcode_fetch;
 
 	assign vpa_o = is_opcode_fetch;
 
 	// If we hit an undefined instruction, we want to take the exception.
 
-	wire ADR_MTVEC = fire0;
-	wire NPC_MTVEC = fire0;
+	assign ADR_MTVEC = fire0;
+	assign NPC_MTVEC = fire0;
 
 	// Whenever we handle an exception, we must set MEPC to either the CPC
 	// or to the NPC, depending on the nature of the exception.
 
-	wire MEPC_CPC = fire0;
+	assign MEPC_CPC = fire0;
 
 	// For every exception, we enter machine-mode, and that means turning
 	// off machine-mode interrupts.  We also need to preserve the previous
 	// setting.
 
-	wire mpie_mie_o = fire0;
-	wire mie_0_o = fire0;
+	assign mpie_mie_o = fire0;
+	assign mie_0_o = fire0;
 
 	// Every exception has a cause.  This logic figures out what it is.
 
-	wire mcause_2_o = fire0;
+	assign mcause_2_o = fire0;
 
 	// We trigger updates to IRL and IRH only at the appropriate times.
 	// Note that we can also optimize out one cycle if we recognize when
