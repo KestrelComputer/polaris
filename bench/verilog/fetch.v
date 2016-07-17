@@ -5,28 +5,20 @@
 // internally generated traps.
 
 module fetch(
-	input	[15:0]	dat_i,
-	input	[63:2]	csr_mtvec_i,
-	input		ack_i,
-	input		clk_i,
-	input		defined_i,
-	input		pause_i,
-	input		reset_i,
-	output	[1:0]	size_o,
-	output	[31:0]	ir_o,
-	output	[63:0]	adr_o,
-	output		we_o,
-	output		mpie_mie_o,
-	output		mie_0_o,
-	output		mcause_2_o
+	input		[15:0]	dat_i,
+	input		[63:2]	csr_mtvec_i,
+	input			ack_i,
+	input			clk_i,
+	input			defined_i,
+	input			pause_i,
+	input			reset_i,
+	output		[1:0]	size_o,
+	output reg	[31:0]	ir_o,
+	output		[63:0]	adr_o,
+	output			mpie_mie_o,
+	output			mie_0_o,
+	output			mcause_2_o
 );
-	// The ADR_O bus is used to address external memory.
-	// It's a full, 64-bit bus instead of a 63-bit bus, like what you'd
-	// expect from a Wishbone bus.	This actually simplifies the control
-	// logic as well as the external Wishbone bridge.
-
-	wire [63:0] adr_o;
-
 	// We multiplex all the different sources of addresses onto this
 	// address bus.  Sometimes, we'll need to pad bits to make things
 	// line up right.
@@ -51,7 +43,7 @@ module fetch(
 	//	10	Two bytes are expected to appear on DAT_I[15:0]
 	//	11	Unused; must never appear.
 
-	wire [1:0] size_o =
+	assign size_o =
 		(SIZE_2) ? 2'b10 :
 		2'b00;
 
@@ -69,17 +61,80 @@ module fetch(
 	wire s4 = state == 3'b100;
 	wire s5 = state == 3'b101;
 
+	// This term discovers undefined or illegal instructions, and kicks off
+	// an illegal instruction trap.
+
 	wire fire0 = (~reset_i) & (~defined_i) & s0;
+
+	// This term discovers when an instruction needs to postpone an
+	// instruction fetch for some reason.  Note that pause_i MUST be
+	// asserted during state 0 for it to have this meaning.
+
 	wire fire1 = (~reset_i) & defined_i & pause_i & s0;
+
+	// This term kicks off the first of two instruction fetch transactions.
+	// This sets up the address bus for the low halfword of the next
+	// instruction.
+
 	wire fire2 = (~reset_i) & defined_i & (~pause_i) & s0;
+
+	// This term waits for ACK_I to be asserted.  NOTE: This term DOES NOT
+	// stall the instruction execute unit.
+
 	wire fire3 = (~reset_i) & (~ack_i) & s1;
+
+	// This term fires when ACK_I is asserted, thus causing data on DAT_I
+	// to be registered into IRL.
+
 	wire fire4 = (~reset_i) & ack_i & s1;
+
+	// This term is just like S0, except for the upper halfword of the next
+	// instruction.
+
 	wire fire5 = (~reset_i) & s2;
+
+	// This term is just like S1, except for the upper halfword of the next
+	// instruction.  Again, this term does not stall the instruction
+	// execute unit.
+
 	wire fire6 = (~reset_i) & (~ack_i) & s3;
+
+	// This term fires when the instruction fetch operation completes.  We
+	// have the high halfword of the next instruction on the data bus, and
+	// we're ready to load the IR.
+	//
+	// When this term fires, we know the instruction fetched is ready to
+	// hand off to the execute unit.  Thus, IR is set to DAT_I : IRL.  IRH
+	// is not used.
+
 	wire fire7 = (~reset_i) & (~pause_i) & ack_i & s3;
+
+	// This term fires when we've completed pre-fetching the next instruction,
+	// but we haven't finished the current instruction yet.  Thus, this state
+	// is reached when we are just starting to wait for the completion of the
+	// current instruction.
+
 	wire fire8 = (~reset_i) & pause_i & ack_i & s3;
+
+	// This term fires, and keeps firing, until pause_i is asserted, but
+	// only if it has been asserted late in the instruction fetch cycle.
+	// This allows the instruction fetch unit to continue fetching the next
+	// instruction, and to sleep until the execute unit says it's OK to
+	// dispatch the next instruction.
+
 	wire fire9 = (~reset_i) & pause_i & s4;
+
+	// When pause_i finally negates, this state is responsible for loading
+	// the IR with IRH:IRL, and restoring normal state machine operation.
+
 	wire fire10 = (~reset_i) & (~pause_i) & s4;
+
+	// These rules fire for similar reasons, but only when pause_i is
+	// asserted early in the instruction fetch cycle.  This allows the
+	// current instruction to postpone fetching the next instruction (maybe
+	// because we don't yet know the correct value of NPC, as with
+	// conditional branches).
+
 	wire fire11 = (~reset_i) & pause_i & s5;
 	wire fire12 = (~reset_i) & (~pause_i) & s5;
 
@@ -96,7 +151,7 @@ module fetch(
 		0;
 
 always @(posedge clk_i or negedge clk_i) begin
-#6 $display("C%d ST=%d NS=%d F=%12b R%d D%d P%d A%d I%d", clk_i, state, next_state, {fire0, fire1, fire2, fire3, fire4,fire5,fire6,fire7,fire8,fire9,fire10,fire11,fire12}, reset_i, defined_i, pause_i, ack_i, IR_DAT_IRL);
+#6 $display("C%d ST=%d NS=%d F=%12b R%d D%d P%d A%d I%d H$%04X L$%04X HD%d LD%D", clk_i, state, next_state, {fire0, fire1, fire2, fire3, fire4,fire5,fire6,fire7,fire8,fire9,fire10,fire11,fire12}, reset_i, defined_i, pause_i, ack_i, IR_DAT_IRL, irh, irl, IRH_DAT, IRL_DAT);
 end
 
 	// We only want to apply the low halfword instruction address when
@@ -134,9 +189,8 @@ end
 	// external bus.  Eventually, these two parts will make it to the
 	// actual instruction register (IR).
 
-	reg [15:0] irl;	// temp
-	reg [15:0] irh;	// temp
-	reg [31:0] ir_o;
+	reg [15:0] irl;
+	reg [15:0] irh;
 
 	// We trigger updates to IRL and IRH only at the appropriate times.
 	// Note that we can also optimize out one cycle if we recognize when
@@ -148,28 +202,48 @@ end
 	wire CPC_NPC = IR_DAT_IRL;
 	wire NPC_NPCp4 = CPC_NPC;
 
+	// Our next program counter value can take on one of a number of values
+	// for a given cycle.
+
+	wire [63:2] next_npc =
+		(reset_i) ? 62'h3FFF_FFFF_FFFF_FFC0 :
+		(NPC_NPCp4) ? r_npc+1 :
+		(NPC_MTVEC) ? csr_mtvec_i :
+		r_npc;
+
+	// Polaris is capable of fetching the next instruction while processing
+	// another.  Since we don't want to overwrite the IR contents while
+	// processing, IRL is used to temporarily hold the low halfword of the
+	// next instruction.
+
+	wire [15:0] next_irl =
+		(reset_i) ? 16'h0013 :
+		(IRL_DAT) ? dat_i :
+		irl;
+
+	// Normally, the CPU can get by with just the IRL register.  Sometimes,
+	// particularly when processing a memory-store instruction, we need to
+	// cache the upper halfword of the next instruction.  That's IRH's job.
+
+	wire [15:0] next_irh =
+		(reset_i) ? 16'h0000 :
+		(IRH_DAT) ? dat_i :
+		irh;
+
+	// The instruction register (IR) is used to hold the instruction being
+	// currently executed.  On hard reset, we default it to the canonical
+	// NOP instruction (ADDI X0, X0, 0).
+
+	wire [31:0] next_ir =
+		(reset_i) ? 32'h00000013 :
+		(IR_DAT_IRL) ? {dat_i, irl} :
+		ir;
+
 	always @(posedge clk_i) begin
-		if(IRL_DAT) irl <= dat_i;
-		if(IRH_DAT) irh <= dat_i;
-		if(IR_DAT_IRL) ir_o <= {dat_i, irl};
-
-		if(NPC_NPCp4) r_npc <= r_npc+1;
-		else if(NPC_MTVEC) r_npc <= csr_mtvec_i;
-	end
-
-	// During instruction fetches, we always read.	We only write for
-	// SB, SH, SW, or SD instructions.
-
-	wire we_o = 0;
-
-	always @(posedge clk_i) begin
-		if(reset_i) begin
-			// Upon hard reset,
-			// the NPC assumes the value $FFFFFFFFFFFFFF00.
-			r_npc <= 62'h3FFFFFFFFFFFFFC0;
-		end
-
-		// Upon every clock, we want to advance to the next state.
+		irl <= next_irl;
+		irh <= next_irh;
+		ir_o <= next_ir;
+		r_npc <= next_npc;
 		state <= next_state;
 	end
 endmodule
@@ -188,7 +262,6 @@ module test_fetch();
 	wire [1:0] size_i;
 	wire [31:0] ir_i;
 	wire [63:0] adr_i;
-	wire we_i;
 	wire mpie_mie_i;
 	wire mie_0_i;
 	wire mcause_2_i;
@@ -199,7 +272,6 @@ module test_fetch();
 		.clk_i(clk_o),
 		.reset_i(reset_o),
 		.size_o(size_i),
-		.we_o(we_i),
 		.dat_i(dat_o),
 		.defined_i(defined_o),
 		.pause_i(pause_o),
@@ -247,16 +319,6 @@ module test_fetch();
 	begin
 		if(size_i !== expected) begin
 			$display("@E %04X SIZE_O Expected=%d Got=%d", story_o, expected, size_i);
-			$stop;
-		end
-	end
-	endtask
-
-	task assert_we;
-	input [1:0] expected;
-	begin
-		if(we_i !== expected) begin
-			$display("@E %04X WE_O Expected=%d Got=%d", story_o, expected, we_i);
 			$stop;
 		end
 	end
@@ -321,24 +383,20 @@ module test_fetch();
 		tick(16'h0100);
 		assert_adr(64'hFFFFFFFFFFFFFF00);
 		assert_size(2);
-		assert_we(0);
 
 		dat_o <= 16'hAAAA;
 		tick(16'h0101);
 		assert_adr(64'hFFFFFFFFFFFFFF00);
 		assert_size(2);
-		assert_we(0);
 
 		tick(16'h0102);
 		assert_adr(64'hFFFFFFFFFFFFFF02);
 		assert_size(2);
-		assert_we(0);
 
 		dat_o <= 16'hBBBB;
 		tick(16'h0103);
 		assert_adr(64'hFFFFFFFFFFFFFF02);
 		assert_size(2);
-		assert_we(0);
 
 		tick(16'h0110);
 		assert_adr(64'hFFFFFFFFFFFFFF04);
