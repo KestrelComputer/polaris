@@ -124,6 +124,19 @@ module test_alu();
 		assert_c(carry);
 		assert_v(overflow);
 		assert_z(zero);
+
+		inA_o <= base;
+		inB_o <= base;
+		cflag_o <= 0;
+		invB_en_o <= 1;
+		sum_en_o <= 1;
+		and_en_o <= 0;
+		xor_en_o <= 0;
+		tick(story | 16'h8000);
+		assert_out(-1);
+		assert_c(~carry);
+		assert_v(overflow);
+		assert_z(0);
 	end
 	endtask
 
