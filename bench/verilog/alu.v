@@ -10,6 +10,8 @@ module test_alu();
 	reg cflag_o;
 	wire [63:0] out_i;
 	wire nflag_i, vflag_i, zflag_i, cflag_i;
+	reg sum_en_o;
+	reg and_en_o;
 
 	alu a(
 		.inA_i(inA_o),
@@ -18,7 +20,9 @@ module test_alu();
 		.out_o(out_i),
 		.vflag_o(vflag_i),
 		.cflag_o(cflag_i),
-		.zflag_o(zflag_i)
+		.zflag_o(zflag_i),
+		.sum_en_i(sum_en_o),
+		.and_en_i(and_en_o)
 	);
 
 	always begin
@@ -74,8 +78,6 @@ module test_alu();
 	end
 	endtask
 
-	// This check assumes no overflow or carry.
-
 	task check_sum_bit;
 	input [15:0] story;
 	input [63:0] base;
@@ -87,11 +89,26 @@ module test_alu();
 		inA_o <= base;
 		inB_o <= base;
 		cflag_o <= cin;
+		sum_en_o <= 1;
+		and_en_o <= 0;
 		tick(story);
 		assert_out({base[62:0], cin});
 		assert_c(carry);
 		assert_v(overflow);
 		assert_z(zero);
+	end
+	endtask
+
+	task check_and;
+	input [15:0] story;
+	input [63:0] base;
+	begin
+		inA_o <= 64'hFFFF_FFFF_FFFF_FFFF;
+		inB_o <= base;
+		sum_en_o <= 0;
+		and_en_o <= 1;
+		tick(story);
+		assert_out(base);
 	end
 	endtask
 
@@ -259,6 +276,88 @@ module test_alu();
 		check_sum_bit(16'h013D, 64'h2000_0000_0000_0000, 1, 0, 0, 0);
 		check_sum_bit(16'h013E, 64'h4000_0000_0000_0000, 1, 0, 1, 0);
 		check_sum_bit(16'h013F, 64'h8000_0000_0000_0000, 1, 1, 1, 0);
+
+		// We also expect our ALU to perform bitwise operations as well.
+
+		check_and(16'h0200, 64'h0000_0000_0000_0001);
+		check_and(16'h0201, 64'h0000_0000_0000_0002);
+		check_and(16'h0202, 64'h0000_0000_0000_0004);
+		check_and(16'h0203, 64'h0000_0000_0000_0008);
+
+		check_and(16'h0204, 64'h0000_0000_0000_0010);
+		check_and(16'h0205, 64'h0000_0000_0000_0020);
+		check_and(16'h0206, 64'h0000_0000_0000_0040);
+		check_and(16'h0207, 64'h0000_0000_0000_0080);
+
+		check_and(16'h0208, 64'h0000_0000_0000_0100);
+		check_and(16'h0209, 64'h0000_0000_0000_0200);
+		check_and(16'h020A, 64'h0000_0000_0000_0400);
+		check_and(16'h020B, 64'h0000_0000_0000_0800);
+
+		check_and(16'h020C, 64'h0000_0000_0000_1000);
+		check_and(16'h020D, 64'h0000_0000_0000_2000);
+		check_and(16'h020E, 64'h0000_0000_0000_4000);
+		check_and(16'h020F, 64'h0000_0000_0000_8000);
+
+		check_and(16'h0210, 64'h0000_0000_0001_0000);
+		check_and(16'h0211, 64'h0000_0000_0002_0000);
+		check_and(16'h0212, 64'h0000_0000_0004_0000);
+		check_and(16'h0213, 64'h0000_0000_0008_0000);
+
+		check_and(16'h0214, 64'h0000_0000_0010_0000);
+		check_and(16'h0215, 64'h0000_0000_0020_0000);
+		check_and(16'h0216, 64'h0000_0000_0040_0000);
+		check_and(16'h0217, 64'h0000_0000_0080_0000);
+
+		check_and(16'h0218, 64'h0000_0000_0100_0000);
+		check_and(16'h0219, 64'h0000_0000_0200_0000);
+		check_and(16'h021A, 64'h0000_0000_0400_0000);
+		check_and(16'h021B, 64'h0000_0000_0800_0000);
+
+		check_and(16'h021C, 64'h0000_0000_1000_0000);
+		check_and(16'h021D, 64'h0000_0000_2000_0000);
+		check_and(16'h021E, 64'h0000_0000_4000_0000);
+		check_and(16'h021F, 64'h0000_0000_8000_0000);
+
+		check_and(16'h0220, 64'h0000_0001_0000_0000);
+		check_and(16'h0221, 64'h0000_0002_0000_0000);
+		check_and(16'h0222, 64'h0000_0004_0000_0000);
+		check_and(16'h0223, 64'h0000_0008_0000_0000);
+
+		check_and(16'h0224, 64'h0000_0010_0000_0000);
+		check_and(16'h0225, 64'h0000_0020_0000_0000);
+		check_and(16'h0226, 64'h0000_0040_0000_0000);
+		check_and(16'h0227, 64'h0000_0080_0000_0000);
+
+		check_and(16'h0228, 64'h0000_0100_0000_0000);
+		check_and(16'h0229, 64'h0000_0200_0000_0000);
+		check_and(16'h022A, 64'h0000_0400_0000_0000);
+		check_and(16'h022B, 64'h0000_0800_0000_0000);
+
+		check_and(16'h022C, 64'h0000_1000_0000_0000);
+		check_and(16'h022D, 64'h0000_2000_0000_0000);
+		check_and(16'h022E, 64'h0000_4000_0000_0000);
+		check_and(16'h022F, 64'h0000_8000_0000_0000);
+
+		check_and(16'h0230, 64'h0001_0000_0000_0000);
+		check_and(16'h0231, 64'h0002_0000_0000_0000);
+		check_and(16'h0232, 64'h0004_0000_0000_0000);
+		check_and(16'h0233, 64'h0008_0000_0000_0000);
+
+		check_and(16'h0234, 64'h0010_0000_0000_0000);
+		check_and(16'h0235, 64'h0020_0000_0000_0000);
+		check_and(16'h0236, 64'h0040_0000_0000_0000);
+		check_and(16'h0237, 64'h0080_0000_0000_0000);
+
+		check_and(16'h0238, 64'h0100_0000_0000_0000);
+		check_and(16'h0239, 64'h0200_0000_0000_0000);
+		check_and(16'h023A, 64'h0400_0000_0000_0000);
+		check_and(16'h023B, 64'h0800_0000_0000_0000);
+
+		check_and(16'h023C, 64'h1000_0000_0000_0000);
+		check_and(16'h023D, 64'h2000_0000_0000_0000);
+		check_and(16'h023E, 64'h4000_0000_0000_0000);
+		check_and(16'h023F, 64'h8000_0000_0000_0000);
 
 		$display("@DONE");
 		$stop;

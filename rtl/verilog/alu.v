@@ -10,6 +10,8 @@ module alu(
 	input	[63:0]	inA_i,
 	input	[63:0]	inB_i,
 	input		cflag_i,
+	input		sum_en_i,
+	input		and_en_i,
 	output	[63:0]	out_o,
 	output		cflag_o,
 	output		vflag_o,
@@ -21,6 +23,11 @@ module alu(
 	wire [64:63] sumH = inA_i[63] + inB_i[63] + c62;
 	assign vflag_o = sumH[64] ^ sumL[63];
 	assign cflag_o = sumH[64];
-	assign out_o = {sumH[63], sumL[62:0]};
+
+	wire [63:0] sums = sum_en_i ? {sumH[63], sumL[62:0]} : 64'd0;
 	assign zflag_o = ~(|out_o);
+
+	wire [63:0] ands = and_en_i ? {inA_i & inB_i} : 64'd0;
+
+	assign out_o = sums | ands;
 endmodule
