@@ -9,12 +9,13 @@
 module alu(
 	input	[63:0]	inA_i,
 	input	[63:0]	inB_i,
+	input		cflag_i,
 	output	[63:0]	out_o,
 	output		cflag_o,
 	output		vflag_o,
 	output		zflag_o
 );
-	wire [63:0] sumL = inA_i[62:0] + inB_i[62:0];
+	wire [63:0] sumL = inA_i[62:0] + inB_i[62:0] + cflag_i;
 	wire c62 = sumL[63];
 
 	wire [64:63] sumH = inA_i[63] + inB_i[63] + c62;
