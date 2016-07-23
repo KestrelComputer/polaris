@@ -13,6 +13,7 @@ module test_alu();
 	reg sum_en_o;
 	reg and_en_o;
 	reg xor_en_o;
+	reg invB_en_o;
 
 	alu a(
 		.inA_i(inA_o),
@@ -24,7 +25,8 @@ module test_alu();
 		.zflag_o(zflag_i),
 		.sum_en_i(sum_en_o),
 		.and_en_i(and_en_o),
-		.xor_en_i(xor_en_o)
+		.xor_en_i(xor_en_o),
+		.invB_en_i(invB_en_o)
 	);
 
 	always begin
@@ -91,11 +93,34 @@ module test_alu();
 		inA_o <= base;
 		inB_o <= base;
 		cflag_o <= cin;
+		invB_en_o <= 0;
 		sum_en_o <= 1;
 		and_en_o <= 0;
 		xor_en_o <= 0;
 		tick(story);
 		assert_out({base[62:0], cin});
+		assert_c(carry);
+		assert_v(overflow);
+		assert_z(zero);
+	end
+	endtask
+
+	task check_diff_bit;
+	input [15:0] story;
+	input [63:0] base;
+	input carry;
+	input overflow;
+	input zero;
+	begin
+		inA_o <= base;
+		inB_o <= base;
+		cflag_o <= 1;
+		invB_en_o <= 1;
+		sum_en_o <= 1;
+		and_en_o <= 0;
+		xor_en_o <= 0;
+		tick(story);
+		assert_out(0);
 		assert_c(carry);
 		assert_v(overflow);
 		assert_z(zero);
@@ -566,6 +591,86 @@ module test_alu();
 		check_or(16'h043D, 64'h2000_0000_0000_0000);
 		check_or(16'h043E, 64'h4000_0000_0000_0000);
 		check_or(16'h043F, 64'h8000_0000_0000_0000);
+
+		check_diff_bit(16'h0500, 64'h0000_0000_0000_0001, 1, 0, 1);
+		check_diff_bit(16'h0501, 64'h0000_0000_0000_0002, 1, 0, 1);
+		check_diff_bit(16'h0502, 64'h0000_0000_0000_0004, 1, 0, 1);
+		check_diff_bit(16'h0503, 64'h0000_0000_0000_0008, 1, 0, 1);
+
+		check_diff_bit(16'h0504, 64'h0000_0000_0000_0010, 1, 0, 1);
+		check_diff_bit(16'h0505, 64'h0000_0000_0000_0020, 1, 0, 1);
+		check_diff_bit(16'h0506, 64'h0000_0000_0000_0040, 1, 0, 1);
+		check_diff_bit(16'h0507, 64'h0000_0000_0000_0080, 1, 0, 1);
+
+		check_diff_bit(16'h0508, 64'h0000_0000_0000_0100, 1, 0, 1);
+		check_diff_bit(16'h0509, 64'h0000_0000_0000_0200, 1, 0, 1);
+		check_diff_bit(16'h050A, 64'h0000_0000_0000_0400, 1, 0, 1);
+		check_diff_bit(16'h050B, 64'h0000_0000_0000_0800, 1, 0, 1);
+
+		check_diff_bit(16'h050C, 64'h0000_0000_0000_1000, 1, 0, 1);
+		check_diff_bit(16'h050D, 64'h0000_0000_0000_2000, 1, 0, 1);
+		check_diff_bit(16'h050E, 64'h0000_0000_0000_4000, 1, 0, 1);
+		check_diff_bit(16'h050F, 64'h0000_0000_0000_8000, 1, 0, 1);
+
+		check_diff_bit(16'h0510, 64'h0000_0000_0001_0000, 1, 0, 1);
+		check_diff_bit(16'h0511, 64'h0000_0000_0002_0000, 1, 0, 1);
+		check_diff_bit(16'h0512, 64'h0000_0000_0004_0000, 1, 0, 1);
+		check_diff_bit(16'h0513, 64'h0000_0000_0008_0000, 1, 0, 1);
+
+		check_diff_bit(16'h0514, 64'h0000_0000_0010_0000, 1, 0, 1);
+		check_diff_bit(16'h0515, 64'h0000_0000_0020_0000, 1, 0, 1);
+		check_diff_bit(16'h0516, 64'h0000_0000_0040_0000, 1, 0, 1);
+		check_diff_bit(16'h0517, 64'h0000_0000_0080_0000, 1, 0, 1);
+
+		check_diff_bit(16'h0518, 64'h0000_0000_0100_0000, 1, 0, 1);
+		check_diff_bit(16'h0519, 64'h0000_0000_0200_0000, 1, 0, 1);
+		check_diff_bit(16'h051A, 64'h0000_0000_0400_0000, 1, 0, 1);
+		check_diff_bit(16'h051B, 64'h0000_0000_0800_0000, 1, 0, 1);
+
+		check_diff_bit(16'h051C, 64'h0000_0000_1000_0000, 1, 0, 1);
+		check_diff_bit(16'h051D, 64'h0000_0000_2000_0000, 1, 0, 1);
+		check_diff_bit(16'h051E, 64'h0000_0000_4000_0000, 1, 0, 1);
+		check_diff_bit(16'h051F, 64'h0000_0000_8000_0000, 1, 0, 1);
+
+		check_diff_bit(16'h0520, 64'h0000_0001_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h0521, 64'h0000_0002_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h0522, 64'h0000_0004_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h0523, 64'h0000_0008_0000_0000, 1, 0, 1);
+
+		check_diff_bit(16'h0524, 64'h0000_0010_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h0525, 64'h0000_0020_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h0526, 64'h0000_0040_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h0527, 64'h0000_0080_0000_0000, 1, 0, 1);
+
+		check_diff_bit(16'h0528, 64'h0000_0100_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h0529, 64'h0000_0200_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h052A, 64'h0000_0400_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h052B, 64'h0000_0800_0000_0000, 1, 0, 1);
+
+		check_diff_bit(16'h052C, 64'h0000_1000_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h052D, 64'h0000_2000_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h052E, 64'h0000_4000_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h052F, 64'h0000_8000_0000_0000, 1, 0, 1);
+
+		check_diff_bit(16'h0530, 64'h0001_0000_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h0531, 64'h0002_0000_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h0532, 64'h0004_0000_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h0533, 64'h0008_0000_0000_0000, 1, 0, 1);
+
+		check_diff_bit(16'h0534, 64'h0010_0000_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h0535, 64'h0020_0000_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h0536, 64'h0040_0000_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h0537, 64'h0080_0000_0000_0000, 1, 0, 1);
+
+		check_diff_bit(16'h0538, 64'h0100_0000_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h0539, 64'h0200_0000_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h053A, 64'h0400_0000_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h053B, 64'h0800_0000_0000_0000, 1, 0, 1);
+
+		check_diff_bit(16'h053C, 64'h1000_0000_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h053D, 64'h2000_0000_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h053E, 64'h4000_0000_0000_0000, 1, 0, 1);
+		check_diff_bit(16'h053F, 64'h8000_0000_0000_0000, 1, 0, 1);
 
 		$display("@DONE");
 		$stop;

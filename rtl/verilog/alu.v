@@ -13,21 +13,24 @@ module alu(
 	input		sum_en_i,
 	input		and_en_i,
 	input		xor_en_i,
+	input		invB_en_i,
 	output	[63:0]	out_o,
 	output		cflag_o,
 	output		vflag_o,
 	output		zflag_o
 );
-	wire [63:0] sumL = inA_i[62:0] + inB_i[62:0] + cflag_i;
+	wire [63:0] b = inB_i ^ ({64{invB_en_i}});
+
+	wire [63:0] sumL = inA_i[62:0] + b[62:0] + cflag_i;
 	wire c62 = sumL[63];
-	wire [64:63] sumH = inA_i[63] + inB_i[63] + c62;
+	wire [64:63] sumH = inA_i[63] + b[63] + c62;
 	wire [63:0] sums = sum_en_i ? {sumH[63], sumL[62:0]} : 64'd0;
 	assign zflag_o = ~(|out_o);
 	assign vflag_o = sumH[64] ^ sumL[63];
 	assign cflag_o = sumH[64];
 
-	wire [63:0] ands = and_en_i ? {inA_i & inB_i} : 64'd0;
-	wire [63:0] xors = xor_en_i ? {inA_i ^ inB_i} : 64'd0;
+	wire [63:0] ands = and_en_i ? {inA_i & b} : 64'd0;
+	wire [63:0] xors = xor_en_i ? {inA_i ^ b} : 64'd0;
 
 	assign out_o = sums | ands | xors;
 endmodule
