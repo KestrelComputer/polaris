@@ -12,6 +12,7 @@ module test_alu();
 	wire nflag_i, vflag_i, zflag_i, cflag_i;
 	reg sum_en_o;
 	reg and_en_o;
+	reg xor_en_o;
 
 	alu a(
 		.inA_i(inA_o),
@@ -22,7 +23,8 @@ module test_alu();
 		.cflag_o(cflag_i),
 		.zflag_o(zflag_i),
 		.sum_en_i(sum_en_o),
-		.and_en_i(and_en_o)
+		.and_en_i(and_en_o),
+		.xor_en_i(xor_en_o)
 	);
 
 	always begin
@@ -91,6 +93,7 @@ module test_alu();
 		cflag_o <= cin;
 		sum_en_o <= 1;
 		and_en_o <= 0;
+		xor_en_o <= 0;
 		tick(story);
 		assert_out({base[62:0], cin});
 		assert_c(carry);
@@ -107,8 +110,31 @@ module test_alu();
 		inB_o <= base;
 		sum_en_o <= 0;
 		and_en_o <= 1;
+		xor_en_o <= 0;
 		tick(story);
 		assert_out(base);
+	end
+	endtask
+
+	task check_xor;
+	input [15:0] story;
+	input [63:0] base;
+	begin
+		inA_o <= 64'h0000_0000_0000_0000;
+		inB_o <= base;
+		sum_en_o <= 0;
+		and_en_o <= 0;
+		xor_en_o <= 1;
+		tick(story);
+		assert_out(base);
+
+		inA_o <= base;
+		inB_o <= base;
+		sum_en_o <= 0;
+		and_en_o <= 0;
+		xor_en_o <= 1;
+		tick(story | 16'h8000);
+		assert_out(0);
 	end
 	endtask
 
@@ -358,6 +384,86 @@ module test_alu();
 		check_and(16'h023D, 64'h2000_0000_0000_0000);
 		check_and(16'h023E, 64'h4000_0000_0000_0000);
 		check_and(16'h023F, 64'h8000_0000_0000_0000);
+
+		check_xor(16'h0300, 64'h0000_0000_0000_0001);
+		check_xor(16'h0301, 64'h0000_0000_0000_0002);
+		check_xor(16'h0302, 64'h0000_0000_0000_0004);
+		check_xor(16'h0303, 64'h0000_0000_0000_0008);
+
+		check_xor(16'h0304, 64'h0000_0000_0000_0010);
+		check_xor(16'h0305, 64'h0000_0000_0000_0020);
+		check_xor(16'h0306, 64'h0000_0000_0000_0040);
+		check_xor(16'h0307, 64'h0000_0000_0000_0080);
+
+		check_xor(16'h0308, 64'h0000_0000_0000_0100);
+		check_xor(16'h0309, 64'h0000_0000_0000_0200);
+		check_xor(16'h030A, 64'h0000_0000_0000_0400);
+		check_xor(16'h030B, 64'h0000_0000_0000_0800);
+
+		check_xor(16'h030C, 64'h0000_0000_0000_1000);
+		check_xor(16'h030D, 64'h0000_0000_0000_2000);
+		check_xor(16'h030E, 64'h0000_0000_0000_4000);
+		check_xor(16'h030F, 64'h0000_0000_0000_8000);
+
+		check_xor(16'h0310, 64'h0000_0000_0001_0000);
+		check_xor(16'h0311, 64'h0000_0000_0002_0000);
+		check_xor(16'h0312, 64'h0000_0000_0004_0000);
+		check_xor(16'h0313, 64'h0000_0000_0008_0000);
+
+		check_xor(16'h0314, 64'h0000_0000_0010_0000);
+		check_xor(16'h0315, 64'h0000_0000_0020_0000);
+		check_xor(16'h0316, 64'h0000_0000_0040_0000);
+		check_xor(16'h0317, 64'h0000_0000_0080_0000);
+
+		check_xor(16'h0318, 64'h0000_0000_0100_0000);
+		check_xor(16'h0319, 64'h0000_0000_0200_0000);
+		check_xor(16'h031A, 64'h0000_0000_0400_0000);
+		check_xor(16'h031B, 64'h0000_0000_0800_0000);
+
+		check_xor(16'h031C, 64'h0000_0000_1000_0000);
+		check_xor(16'h031D, 64'h0000_0000_2000_0000);
+		check_xor(16'h031E, 64'h0000_0000_4000_0000);
+		check_xor(16'h031F, 64'h0000_0000_8000_0000);
+
+		check_xor(16'h0320, 64'h0000_0001_0000_0000);
+		check_xor(16'h0321, 64'h0000_0002_0000_0000);
+		check_xor(16'h0322, 64'h0000_0004_0000_0000);
+		check_xor(16'h0323, 64'h0000_0008_0000_0000);
+
+		check_xor(16'h0324, 64'h0000_0010_0000_0000);
+		check_xor(16'h0325, 64'h0000_0020_0000_0000);
+		check_xor(16'h0326, 64'h0000_0040_0000_0000);
+		check_xor(16'h0327, 64'h0000_0080_0000_0000);
+
+		check_xor(16'h0328, 64'h0000_0100_0000_0000);
+		check_xor(16'h0329, 64'h0000_0200_0000_0000);
+		check_xor(16'h032A, 64'h0000_0400_0000_0000);
+		check_xor(16'h032B, 64'h0000_0800_0000_0000);
+
+		check_xor(16'h032C, 64'h0000_1000_0000_0000);
+		check_xor(16'h032D, 64'h0000_2000_0000_0000);
+		check_xor(16'h032E, 64'h0000_4000_0000_0000);
+		check_xor(16'h032F, 64'h0000_8000_0000_0000);
+
+		check_xor(16'h0330, 64'h0001_0000_0000_0000);
+		check_xor(16'h0331, 64'h0002_0000_0000_0000);
+		check_xor(16'h0332, 64'h0004_0000_0000_0000);
+		check_xor(16'h0333, 64'h0008_0000_0000_0000);
+
+		check_xor(16'h0334, 64'h0010_0000_0000_0000);
+		check_xor(16'h0335, 64'h0020_0000_0000_0000);
+		check_xor(16'h0336, 64'h0040_0000_0000_0000);
+		check_xor(16'h0337, 64'h0080_0000_0000_0000);
+
+		check_xor(16'h0338, 64'h0100_0000_0000_0000);
+		check_xor(16'h0339, 64'h0300_0000_0000_0000);
+		check_xor(16'h033A, 64'h0400_0000_0000_0000);
+		check_xor(16'h033B, 64'h0800_0000_0000_0000);
+
+		check_xor(16'h033C, 64'h1000_0000_0000_0000);
+		check_xor(16'h033D, 64'h2000_0000_0000_0000);
+		check_xor(16'h033E, 64'h4000_0000_0000_0000);
+		check_xor(16'h033F, 64'h8000_0000_0000_0000);
 
 		$display("@DONE");
 		$stop;

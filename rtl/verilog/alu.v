@@ -12,6 +12,7 @@ module alu(
 	input		cflag_i,
 	input		sum_en_i,
 	input		and_en_i,
+	input		xor_en_i,
 	output	[63:0]	out_o,
 	output		cflag_o,
 	output		vflag_o,
@@ -28,6 +29,7 @@ module alu(
 	assign zflag_o = ~(|out_o);
 
 	wire [63:0] ands = and_en_i ? {inA_i & inB_i} : 64'd0;
+	wire [63:0] xors = xor_en_i ? {inA_i ^ inB_i} : 64'd0;
 
-	assign out_o = sums | ands;
+	assign out_o = sums | ands | xors;
 endmodule
