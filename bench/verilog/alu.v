@@ -218,20 +218,34 @@ module test_alu();
 	end
 	endtask
 
+	task check_sh;
+	input [15:0] story;
+	input [5:0] shamt;
+	input [63:0] expected;
+	input [63:0] a;
+	input cflag;
+	input lsh;
+	input rsh;
+	begin
+		inA_o <= a;
+		inB_o <= {58'd0, shamt};
+		cflag_o <= cflag;
+		sum_en_o <= 0;
+		and_en_o <= 0;
+		xor_en_o <= 0;
+		lsh_en_o <= lsh;
+		rsh_en_o <= rsh;
+		tick(story);
+		assert_out(expected);
+	end
+	endtask
+
 	task check_lsh;
 	input [15:0] story;
 	input [5:0] shamt;
 	input [63:0] expected;
 	begin
-		inA_o <= 64'h0000_0000_0000_0001;
-		inB_o <= {58'd0, shamt};
-		sum_en_o <= 0;
-		and_en_o <= 0;
-		xor_en_o <= 0;
-		lsh_en_o <= 1;
-		rsh_en_o <= 0;
-		tick(story);
-		assert_out(expected);
+		check_sh(story, shamt, expected, 64'h0000_0000_0000_0001, 0, 1, 0);
 	end
 	endtask
 
@@ -240,16 +254,7 @@ module test_alu();
 	input [5:0] shamt;
 	input [63:0] expected;
 	begin
-		inA_o <= 64'h8000_0000_0000_0000;
-		inB_o <= {58'd0, shamt};
-		cflag_o <= 0;
-		sum_en_o <= 0;
-		and_en_o <= 0;
-		xor_en_o <= 0;
-		lsh_en_o <= 0;
-		rsh_en_o <= 1;
-		tick(story);
-		assert_out(expected);
+		check_sh(story, shamt, expected, 64'h8000_0000_0000_0000, 0, 0, 1);
 	end
 	endtask
 
@@ -258,16 +263,16 @@ module test_alu();
 	input [5:0] shamt;
 	input [63:0] expected;
 	begin
-		inA_o <= 64'h8000_0000_0000_0000;
-		inB_o <= {58'd0, shamt};
-		cflag_o <= 1;
-		sum_en_o <= 0;
-		and_en_o <= 0;
-		xor_en_o <= 0;
-		lsh_en_o <= 0;
-		rsh_en_o <= 1;
-		tick(story);
-		assert_out(expected);
+		check_sh(story, shamt, expected, 64'h8000_0000_0000_0000, 1, 0, 1);
+	end
+	endtask
+
+	task check_asr_2;
+	input [15:0] story;
+	input [5:0] shamt;
+	input [63:0] expected;
+	begin
+		check_sh(story, shamt, expected, 64'h4000_0000_0000_0000, 1, 0, 1);
 	end
 	endtask
 
@@ -1000,6 +1005,86 @@ module test_alu();
 		check_asr(16'h083D, 6'd61, 64'hFFFF_FFFF_FFFF_FFFC);
 		check_asr(16'h083E, 6'd62, 64'hFFFF_FFFF_FFFF_FFFE);
 		check_asr(16'h083F, 6'd63, 64'hFFFF_FFFF_FFFF_FFFF);
+
+		check_asr_2(16'h0900, 6'd0, 64'h4000_0000_0000_0000);
+		check_asr_2(16'h0901, 6'd1, 64'h2000_0000_0000_0000);
+		check_asr_2(16'h0902, 6'd2, 64'h1000_0000_0000_0000);
+		check_asr_2(16'h0903, 6'd3, 64'h0800_0000_0000_0000);
+
+		check_asr_2(16'h0904, 6'd4, 64'h0400_0000_0000_0000);
+		check_asr_2(16'h0905, 6'd5, 64'h0200_0000_0000_0000);
+		check_asr_2(16'h0906, 6'd6, 64'h0100_0000_0000_0000);
+		check_asr_2(16'h0907, 6'd7, 64'h0080_0000_0000_0000);
+
+		check_asr_2(16'h0908, 6'd8, 64'h0040_0000_0000_0000);
+		check_asr_2(16'h0909, 6'd9, 64'h0020_0000_0000_0000);
+		check_asr_2(16'h090A, 6'd10, 64'h0010_0000_0000_0000);
+		check_asr_2(16'h090B, 6'd11, 64'h0008_0000_0000_0000);
+
+		check_asr_2(16'h090C, 6'd12, 64'h0004_0000_0000_0000);
+		check_asr_2(16'h090D, 6'd13, 64'h0002_0000_0000_0000);
+		check_asr_2(16'h090E, 6'd14, 64'h0001_0000_0000_0000);
+		check_asr_2(16'h090F, 6'd15, 64'h0000_8000_0000_0000);
+
+		check_asr_2(16'h0910, 6'd16, 64'h0000_4000_0000_0000);
+		check_asr_2(16'h0911, 6'd17, 64'h0000_2000_0000_0000);
+		check_asr_2(16'h0912, 6'd18, 64'h0000_1000_0000_0000);
+		check_asr_2(16'h0913, 6'd19, 64'h0000_0800_0000_0000);
+
+		check_asr_2(16'h0914, 6'd20, 64'h0000_0400_0000_0000);
+		check_asr_2(16'h0915, 6'd21, 64'h0000_0200_0000_0000);
+		check_asr_2(16'h0916, 6'd22, 64'h0000_0100_0000_0000);
+		check_asr_2(16'h0917, 6'd23, 64'h0000_0080_0000_0000);
+
+		check_asr_2(16'h0918, 6'd24, 64'h0000_0040_0000_0000);
+		check_asr_2(16'h0919, 6'd25, 64'h0000_0020_0000_0000);
+		check_asr_2(16'h091A, 6'd26, 64'h0000_0010_0000_0000);
+		check_asr_2(16'h091B, 6'd27, 64'h0000_0008_0000_0000);
+
+		check_asr_2(16'h091C, 6'd28, 64'h0000_0004_0000_0000);
+		check_asr_2(16'h091D, 6'd29, 64'h0000_0002_0000_0000);
+		check_asr_2(16'h091E, 6'd30, 64'h0000_0001_0000_0000);
+		check_asr_2(16'h091F, 6'd31, 64'h0000_0000_8000_0000);
+
+		check_asr_2(16'h0920, 6'd32, 64'h0000_0000_4000_0000);
+		check_asr_2(16'h0921, 6'd33, 64'h0000_0000_2000_0000);
+		check_asr_2(16'h0922, 6'd34, 64'h0000_0000_1000_0000);
+		check_asr_2(16'h0923, 6'd35, 64'h0000_0000_0800_0000);
+
+		check_asr_2(16'h0924, 6'd36, 64'h0000_0000_0400_0000);
+		check_asr_2(16'h0925, 6'd37, 64'h0000_0000_0200_0000);
+		check_asr_2(16'h0926, 6'd38, 64'h0000_0000_0100_0000);
+		check_asr_2(16'h0927, 6'd39, 64'h0000_0000_0080_0000);
+
+		check_asr_2(16'h0928, 6'd40, 64'h0000_0000_0040_0000);
+		check_asr_2(16'h0929, 6'd41, 64'h0000_0000_0020_0000);
+		check_asr_2(16'h092A, 6'd42, 64'h0000_0000_0010_0000);
+		check_asr_2(16'h092B, 6'd43, 64'h0000_0000_0008_0000);
+
+		check_asr_2(16'h092C, 6'd44, 64'h0000_0000_0004_0000);
+		check_asr_2(16'h092D, 6'd45, 64'h0000_0000_0002_0000);
+		check_asr_2(16'h092E, 6'd46, 64'h0000_0000_0001_0000);
+		check_asr_2(16'h092F, 6'd47, 64'h0000_0000_0000_8000);
+
+		check_asr_2(16'h0930, 6'd48, 64'h0000_0000_0000_4000);
+		check_asr_2(16'h0931, 6'd49, 64'h0000_0000_0000_2000);
+		check_asr_2(16'h0932, 6'd50, 64'h0000_0000_0000_1000);
+		check_asr_2(16'h0933, 6'd51, 64'h0000_0000_0000_0800);
+
+		check_asr_2(16'h0934, 6'd52, 64'h0000_0000_0000_0400);
+		check_asr_2(16'h0935, 6'd53, 64'h0000_0000_0000_0200);
+		check_asr_2(16'h0936, 6'd54, 64'h0000_0000_0000_0100);
+		check_asr_2(16'h0937, 6'd55, 64'h0000_0000_0000_0080);
+
+		check_asr_2(16'h0938, 6'd56, 64'h0000_0000_0000_0040);
+		check_asr_2(16'h0939, 6'd57, 64'h0000_0000_0000_0020);
+		check_asr_2(16'h093A, 6'd58, 64'h0000_0000_0000_0010);
+		check_asr_2(16'h093B, 6'd59, 64'h0000_0000_0000_0008);
+
+		check_asr_2(16'h093C, 6'd60, 64'h0000_0000_0000_0004);
+		check_asr_2(16'h093D, 6'd61, 64'h0000_0000_0000_0002);
+		check_asr_2(16'h093E, 6'd62, 64'h0000_0000_0000_0001);
+		check_asr_2(16'h093F, 6'd63, 64'h0000_0000_0000_0000);
 
 		$display("@DONE");
 		$stop;
