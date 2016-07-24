@@ -14,6 +14,8 @@ module test_alu();
 	reg and_en_o;
 	reg xor_en_o;
 	reg invB_en_o;
+	reg lsh_en_o;
+	reg rsh_en_o;
 
 	alu a(
 		.inA_i(inA_o),
@@ -26,7 +28,9 @@ module test_alu();
 		.sum_en_i(sum_en_o),
 		.and_en_i(and_en_o),
 		.xor_en_i(xor_en_o),
-		.invB_en_i(invB_en_o)
+		.invB_en_i(invB_en_o),
+		.lsh_en_i(lsh_en_o),
+		.rsh_en_i(rsh_en_o)
 	);
 
 	always begin
@@ -97,6 +101,8 @@ module test_alu();
 		sum_en_o <= 1;
 		and_en_o <= 0;
 		xor_en_o <= 0;
+		lsh_en_o <= 0;
+		rsh_en_o <= 0;
 		tick(story);
 		assert_out({base[62:0], cin});
 		assert_c(carry);
@@ -119,6 +125,8 @@ module test_alu();
 		sum_en_o <= 1;
 		and_en_o <= 0;
 		xor_en_o <= 0;
+		lsh_en_o <= 0;
+		rsh_en_o <= 0;
 		tick(story);
 		assert_out(0);
 		assert_c(carry);
@@ -132,6 +140,8 @@ module test_alu();
 		sum_en_o <= 1;
 		and_en_o <= 0;
 		xor_en_o <= 0;
+		lsh_en_o <= 0;
+		rsh_en_o <= 0;
 		tick(story | 16'h8000);
 		assert_out(-1);
 		assert_c(~carry);
@@ -149,6 +159,8 @@ module test_alu();
 		sum_en_o <= 0;
 		and_en_o <= 1;
 		xor_en_o <= 0;
+		lsh_en_o <= 0;
+		rsh_en_o <= 0;
 		tick(story);
 		assert_out(base);
 	end
@@ -163,6 +175,8 @@ module test_alu();
 		sum_en_o <= 0;
 		and_en_o <= 0;
 		xor_en_o <= 1;
+		lsh_en_o <= 0;
+		rsh_en_o <= 0;
 		tick(story);
 		assert_out(base);
 
@@ -171,6 +185,8 @@ module test_alu();
 		sum_en_o <= 0;
 		and_en_o <= 0;
 		xor_en_o <= 1;
+		lsh_en_o <= 0;
+		rsh_en_o <= 0;
 		tick(story | 16'h8000);
 		assert_out(0);
 	end
@@ -185,6 +201,8 @@ module test_alu();
 		sum_en_o <= 0;
 		and_en_o <= 1;
 		xor_en_o <= 1;
+		lsh_en_o <= 0;
+		rsh_en_o <= 0;
 		tick(story);
 		assert_out(base);
 
@@ -193,8 +211,63 @@ module test_alu();
 		sum_en_o <= 0;
 		and_en_o <= 1;
 		xor_en_o <= 1;
+		lsh_en_o <= 0;
+		rsh_en_o <= 0;
 		tick(story | 16'h8000);
 		assert_out(64'hFFFF_FFFF_FFFF_FFFF);
+	end
+	endtask
+
+	task check_lsh;
+	input [15:0] story;
+	input [5:0] shamt;
+	input [63:0] expected;
+	begin
+		inA_o <= 64'h0000_0000_0000_0001;
+		inB_o <= {58'd0, shamt};
+		sum_en_o <= 0;
+		and_en_o <= 0;
+		xor_en_o <= 0;
+		lsh_en_o <= 1;
+		rsh_en_o <= 0;
+		tick(story);
+		assert_out(expected);
+	end
+	endtask
+
+	task check_rsh;
+	input [15:0] story;
+	input [5:0] shamt;
+	input [63:0] expected;
+	begin
+		inA_o <= 64'h8000_0000_0000_0000;
+		inB_o <= {58'd0, shamt};
+		cflag_o <= 0;
+		sum_en_o <= 0;
+		and_en_o <= 0;
+		xor_en_o <= 0;
+		lsh_en_o <= 0;
+		rsh_en_o <= 1;
+		tick(story);
+		assert_out(expected);
+	end
+	endtask
+
+	task check_asr;
+	input [15:0] story;
+	input [5:0] shamt;
+	input [63:0] expected;
+	begin
+		inA_o <= 64'h8000_0000_0000_0000;
+		inB_o <= {58'd0, shamt};
+		cflag_o <= 1;
+		sum_en_o <= 0;
+		and_en_o <= 0;
+		xor_en_o <= 0;
+		lsh_en_o <= 0;
+		rsh_en_o <= 1;
+		tick(story);
+		assert_out(expected);
 	end
 	endtask
 
@@ -684,6 +757,249 @@ module test_alu();
 		check_diff_bit(16'h053D, 64'h2000_0000_0000_0000, 1, 0, 1);
 		check_diff_bit(16'h053E, 64'h4000_0000_0000_0000, 1, 0, 1);
 		check_diff_bit(16'h053F, 64'h8000_0000_0000_0000, 1, 0, 1);
+
+		// ALU should be able to perform left and right shifts, both
+		// logical and arithmetic.
+
+		check_lsh(16'h0600, 6'd0, 64'h0000_0000_0000_0001);
+		check_lsh(16'h0601, 6'd1, 64'h0000_0000_0000_0002);
+		check_lsh(16'h0602, 6'd2, 64'h0000_0000_0000_0004);
+		check_lsh(16'h0603, 6'd3, 64'h0000_0000_0000_0008);
+
+		check_lsh(16'h0604, 6'd4, 64'h0000_0000_0000_0010);
+		check_lsh(16'h0605, 6'd5, 64'h0000_0000_0000_0020);
+		check_lsh(16'h0606, 6'd6, 64'h0000_0000_0000_0040);
+		check_lsh(16'h0607, 6'd7, 64'h0000_0000_0000_0080);
+
+		check_lsh(16'h0608, 6'd8, 64'h0000_0000_0000_0100);
+		check_lsh(16'h0609, 6'd9, 64'h0000_0000_0000_0200);
+		check_lsh(16'h060A, 6'd10, 64'h0000_0000_0000_0400);
+		check_lsh(16'h060B, 6'd11, 64'h0000_0000_0000_0800);
+
+		check_lsh(16'h060C, 6'd12, 64'h0000_0000_0000_1000);
+		check_lsh(16'h060D, 6'd13, 64'h0000_0000_0000_2000);
+		check_lsh(16'h060E, 6'd14, 64'h0000_0000_0000_4000);
+		check_lsh(16'h060F, 6'd15, 64'h0000_0000_0000_8000);
+
+		check_lsh(16'h0610, 6'd16, 64'h0000_0000_0001_0000);
+		check_lsh(16'h0611, 6'd17, 64'h0000_0000_0002_0000);
+		check_lsh(16'h0612, 6'd18, 64'h0000_0000_0004_0000);
+		check_lsh(16'h0613, 6'd19, 64'h0000_0000_0008_0000);
+
+		check_lsh(16'h0614, 6'd20, 64'h0000_0000_0010_0000);
+		check_lsh(16'h0615, 6'd21, 64'h0000_0000_0020_0000);
+		check_lsh(16'h0616, 6'd22, 64'h0000_0000_0040_0000);
+		check_lsh(16'h0617, 6'd23, 64'h0000_0000_0080_0000);
+
+		check_lsh(16'h0618, 6'd24, 64'h0000_0000_0100_0000);
+		check_lsh(16'h0619, 6'd25, 64'h0000_0000_0200_0000);
+		check_lsh(16'h061A, 6'd26, 64'h0000_0000_0400_0000);
+		check_lsh(16'h061B, 6'd27, 64'h0000_0000_0800_0000);
+
+		check_lsh(16'h061C, 6'd28, 64'h0000_0000_1000_0000);
+		check_lsh(16'h061D, 6'd29, 64'h0000_0000_2000_0000);
+		check_lsh(16'h061E, 6'd30, 64'h0000_0000_4000_0000);
+		check_lsh(16'h061F, 6'd31, 64'h0000_0000_8000_0000);
+
+		check_lsh(16'h0620, 6'd32, 64'h0000_0001_0000_0000);
+		check_lsh(16'h0621, 6'd33, 64'h0000_0002_0000_0000);
+		check_lsh(16'h0622, 6'd34, 64'h0000_0004_0000_0000);
+		check_lsh(16'h0623, 6'd35, 64'h0000_0008_0000_0000);
+
+		check_lsh(16'h0624, 6'd36, 64'h0000_0010_0000_0000);
+		check_lsh(16'h0625, 6'd37, 64'h0000_0020_0000_0000);
+		check_lsh(16'h0626, 6'd38, 64'h0000_0040_0000_0000);
+		check_lsh(16'h0627, 6'd39, 64'h0000_0080_0000_0000);
+
+		check_lsh(16'h0628, 6'd40, 64'h0000_0100_0000_0000);
+		check_lsh(16'h0629, 6'd41, 64'h0000_0200_0000_0000);
+		check_lsh(16'h062A, 6'd42, 64'h0000_0400_0000_0000);
+		check_lsh(16'h062B, 6'd43, 64'h0000_0800_0000_0000);
+
+		check_lsh(16'h062C, 6'd44, 64'h0000_1000_0000_0000);
+		check_lsh(16'h062D, 6'd45, 64'h0000_2000_0000_0000);
+		check_lsh(16'h062E, 6'd46, 64'h0000_4000_0000_0000);
+		check_lsh(16'h062F, 6'd47, 64'h0000_8000_0000_0000);
+
+		check_lsh(16'h0630, 6'd48, 64'h0001_0000_0000_0000);
+		check_lsh(16'h0631, 6'd49, 64'h0002_0000_0000_0000);
+		check_lsh(16'h0632, 6'd50, 64'h0004_0000_0000_0000);
+		check_lsh(16'h0633, 6'd51, 64'h0008_0000_0000_0000);
+
+		check_lsh(16'h0634, 6'd52, 64'h0010_0000_0000_0000);
+		check_lsh(16'h0635, 6'd53, 64'h0020_0000_0000_0000);
+		check_lsh(16'h0636, 6'd54, 64'h0040_0000_0000_0000);
+		check_lsh(16'h0637, 6'd55, 64'h0080_0000_0000_0000);
+
+		check_lsh(16'h0638, 6'd56, 64'h0100_0000_0000_0000);
+		check_lsh(16'h0639, 6'd57, 64'h0200_0000_0000_0000);
+		check_lsh(16'h063A, 6'd58, 64'h0400_0000_0000_0000);
+		check_lsh(16'h063B, 6'd59, 64'h0800_0000_0000_0000);
+
+		check_lsh(16'h063C, 6'd60, 64'h1000_0000_0000_0000);
+		check_lsh(16'h063D, 6'd61, 64'h2000_0000_0000_0000);
+		check_lsh(16'h063E, 6'd62, 64'h4000_0000_0000_0000);
+		check_lsh(16'h063F, 6'd63, 64'h8000_0000_0000_0000);
+
+		check_rsh(16'h0700, 6'd0, 64'h8000_0000_0000_0000);
+		check_rsh(16'h0701, 6'd1, 64'h4000_0000_0000_0000);
+		check_rsh(16'h0702, 6'd2, 64'h2000_0000_0000_0000);
+		check_rsh(16'h0703, 6'd3, 64'h1000_0000_0000_0000);
+
+		check_rsh(16'h0704, 6'd4, 64'h0800_0000_0000_0000);
+		check_rsh(16'h0705, 6'd5, 64'h0400_0000_0000_0000);
+		check_rsh(16'h0706, 6'd6, 64'h0200_0000_0000_0000);
+		check_rsh(16'h0707, 6'd7, 64'h0100_0000_0000_0000);
+
+		check_rsh(16'h0708, 6'd8, 64'h0080_0000_0000_0000);
+		check_rsh(16'h0709, 6'd9, 64'h0040_0000_0000_0000);
+		check_rsh(16'h070A, 6'd10, 64'h0020_0000_0000_0000);
+		check_rsh(16'h070B, 6'd11, 64'h0010_0000_0000_0000);
+
+		check_rsh(16'h070C, 6'd12, 64'h0008_0000_0000_0000);
+		check_rsh(16'h070D, 6'd13, 64'h0004_0000_0000_0000);
+		check_rsh(16'h070E, 6'd14, 64'h0002_0000_0000_0000);
+		check_rsh(16'h070F, 6'd15, 64'h0001_0000_0000_0000);
+
+		check_rsh(16'h0710, 6'd16, 64'h0000_8000_0000_0000);
+		check_rsh(16'h0711, 6'd17, 64'h0000_4000_0000_0000);
+		check_rsh(16'h0712, 6'd18, 64'h0000_2000_0000_0000);
+		check_rsh(16'h0713, 6'd19, 64'h0000_1000_0000_0000);
+
+		check_rsh(16'h0714, 6'd20, 64'h0000_0800_0000_0000);
+		check_rsh(16'h0715, 6'd21, 64'h0000_0400_0000_0000);
+		check_rsh(16'h0716, 6'd22, 64'h0000_0200_0000_0000);
+		check_rsh(16'h0717, 6'd23, 64'h0000_0100_0000_0000);
+
+		check_rsh(16'h0718, 6'd24, 64'h0000_0080_0000_0000);
+		check_rsh(16'h0719, 6'd25, 64'h0000_0040_0000_0000);
+		check_rsh(16'h071A, 6'd26, 64'h0000_0020_0000_0000);
+		check_rsh(16'h071B, 6'd27, 64'h0000_0010_0000_0000);
+
+		check_rsh(16'h071C, 6'd28, 64'h0000_0008_0000_0000);
+		check_rsh(16'h071D, 6'd29, 64'h0000_0004_0000_0000);
+		check_rsh(16'h071E, 6'd30, 64'h0000_0002_0000_0000);
+		check_rsh(16'h071F, 6'd31, 64'h0000_0001_0000_0000);
+
+		check_rsh(16'h0720, 6'd32, 64'h0000_0000_8000_0000);
+		check_rsh(16'h0721, 6'd33, 64'h0000_0000_4000_0000);
+		check_rsh(16'h0722, 6'd34, 64'h0000_0000_2000_0000);
+		check_rsh(16'h0723, 6'd35, 64'h0000_0000_1000_0000);
+
+		check_rsh(16'h0724, 6'd36, 64'h0000_0000_0800_0000);
+		check_rsh(16'h0725, 6'd37, 64'h0000_0000_0400_0000);
+		check_rsh(16'h0726, 6'd38, 64'h0000_0000_0200_0000);
+		check_rsh(16'h0727, 6'd39, 64'h0000_0000_0100_0000);
+
+		check_rsh(16'h0728, 6'd40, 64'h0000_0000_0080_0000);
+		check_rsh(16'h0729, 6'd41, 64'h0000_0000_0040_0000);
+		check_rsh(16'h072A, 6'd42, 64'h0000_0000_0020_0000);
+		check_rsh(16'h072B, 6'd43, 64'h0000_0000_0010_0000);
+
+		check_rsh(16'h072C, 6'd44, 64'h0000_0000_0008_0000);
+		check_rsh(16'h072D, 6'd45, 64'h0000_0000_0004_0000);
+		check_rsh(16'h072E, 6'd46, 64'h0000_0000_0002_0000);
+		check_rsh(16'h072F, 6'd47, 64'h0000_0000_0001_0000);
+
+		check_rsh(16'h0730, 6'd48, 64'h0000_0000_0000_8000);
+		check_rsh(16'h0731, 6'd49, 64'h0000_0000_0000_4000);
+		check_rsh(16'h0732, 6'd50, 64'h0000_0000_0000_2000);
+		check_rsh(16'h0733, 6'd51, 64'h0000_0000_0000_1000);
+
+		check_rsh(16'h0734, 6'd52, 64'h0000_0000_0000_0800);
+		check_rsh(16'h0735, 6'd53, 64'h0000_0000_0000_0400);
+		check_rsh(16'h0736, 6'd54, 64'h0000_0000_0000_0200);
+		check_rsh(16'h0737, 6'd55, 64'h0000_0000_0000_0100);
+
+		check_rsh(16'h0738, 6'd56, 64'h0000_0000_0000_0080);
+		check_rsh(16'h0739, 6'd57, 64'h0000_0000_0000_0040);
+		check_rsh(16'h073A, 6'd58, 64'h0000_0000_0000_0020);
+		check_rsh(16'h073B, 6'd59, 64'h0000_0000_0000_0010);
+
+		check_rsh(16'h073C, 6'd60, 64'h0000_0000_0000_0008);
+		check_rsh(16'h073D, 6'd61, 64'h0000_0000_0000_0004);
+		check_rsh(16'h073E, 6'd62, 64'h0000_0000_0000_0002);
+		check_rsh(16'h073F, 6'd63, 64'h0000_0000_0000_0001);
+
+		check_asr(16'h0800, 6'd0, 64'h8000_0000_0000_0000);
+		check_asr(16'h0801, 6'd1, 64'hC000_0000_0000_0000);
+		check_asr(16'h0802, 6'd2, 64'hE000_0000_0000_0000);
+		check_asr(16'h0803, 6'd3, 64'hF000_0000_0000_0000);
+
+		check_asr(16'h0804, 6'd4, 64'hF800_0000_0000_0000);
+		check_asr(16'h0805, 6'd5, 64'hFC00_0000_0000_0000);
+		check_asr(16'h0806, 6'd6, 64'hFE00_0000_0000_0000);
+		check_asr(16'h0807, 6'd7, 64'hFF00_0000_0000_0000);
+
+		check_asr(16'h0808, 6'd8, 64'hFF80_0000_0000_0000);
+		check_asr(16'h0809, 6'd9, 64'hFFC0_0000_0000_0000);
+		check_asr(16'h080A, 6'd10, 64'hFFE0_0000_0000_0000);
+		check_asr(16'h080B, 6'd11, 64'hFFF0_0000_0000_0000);
+
+		check_asr(16'h080C, 6'd12, 64'hFFF8_0000_0000_0000);
+		check_asr(16'h080D, 6'd13, 64'hFFFC_0000_0000_0000);
+		check_asr(16'h080E, 6'd14, 64'hFFFE_0000_0000_0000);
+		check_asr(16'h080F, 6'd15, 64'hFFFF_0000_0000_0000);
+
+		check_asr(16'h0810, 6'd16, 64'hFFFF_8000_0000_0000);
+		check_asr(16'h0811, 6'd17, 64'hFFFF_C000_0000_0000);
+		check_asr(16'h0812, 6'd18, 64'hFFFF_E000_0000_0000);
+		check_asr(16'h0813, 6'd19, 64'hFFFF_F000_0000_0000);
+
+		check_asr(16'h0814, 6'd20, 64'hFFFF_F800_0000_0000);
+		check_asr(16'h0815, 6'd21, 64'hFFFF_FC00_0000_0000);
+		check_asr(16'h0816, 6'd22, 64'hFFFF_FE00_0000_0000);
+		check_asr(16'h0817, 6'd23, 64'hFFFF_FF00_0000_0000);
+
+		check_asr(16'h0818, 6'd24, 64'hFFFF_FF80_0000_0000);
+		check_asr(16'h0819, 6'd25, 64'hFFFF_FFC0_0000_0000);
+		check_asr(16'h081A, 6'd26, 64'hFFFF_FFE0_0000_0000);
+		check_asr(16'h081B, 6'd27, 64'hFFFF_FFF0_0000_0000);
+
+		check_asr(16'h081C, 6'd28, 64'hFFFF_FFF8_0000_0000);
+		check_asr(16'h081D, 6'd29, 64'hFFFF_FFFC_0000_0000);
+		check_asr(16'h081E, 6'd30, 64'hFFFF_FFFE_0000_0000);
+		check_asr(16'h081F, 6'd31, 64'hFFFF_FFFF_0000_0000);
+
+		check_asr(16'h0820, 6'd32, 64'hFFFF_FFFF_8000_0000);
+		check_asr(16'h0821, 6'd33, 64'hFFFF_FFFF_C000_0000);
+		check_asr(16'h0822, 6'd34, 64'hFFFF_FFFF_E000_0000);
+		check_asr(16'h0823, 6'd35, 64'hFFFF_FFFF_F000_0000);
+
+		check_asr(16'h0824, 6'd36, 64'hFFFF_FFFF_F800_0000);
+		check_asr(16'h0825, 6'd37, 64'hFFFF_FFFF_FC00_0000);
+		check_asr(16'h0826, 6'd38, 64'hFFFF_FFFF_FE00_0000);
+		check_asr(16'h0827, 6'd39, 64'hFFFF_FFFF_FF00_0000);
+
+		check_asr(16'h0828, 6'd40, 64'hFFFF_FFFF_FF80_0000);
+		check_asr(16'h0829, 6'd41, 64'hFFFF_FFFF_FFC0_0000);
+		check_asr(16'h082A, 6'd42, 64'hFFFF_FFFF_FFE0_0000);
+		check_asr(16'h082B, 6'd43, 64'hFFFF_FFFF_FFF0_0000);
+
+		check_asr(16'h082C, 6'd44, 64'hFFFF_FFFF_FFF8_0000);
+		check_asr(16'h082D, 6'd45, 64'hFFFF_FFFF_FFFC_0000);
+		check_asr(16'h082E, 6'd46, 64'hFFFF_FFFF_FFFE_0000);
+		check_asr(16'h082F, 6'd47, 64'hFFFF_FFFF_FFFF_0000);
+
+		check_asr(16'h0830, 6'd48, 64'hFFFF_FFFF_FFFF_8000);
+		check_asr(16'h0831, 6'd49, 64'hFFFF_FFFF_FFFF_C000);
+		check_asr(16'h0832, 6'd50, 64'hFFFF_FFFF_FFFF_E000);
+		check_asr(16'h0833, 6'd51, 64'hFFFF_FFFF_FFFF_F000);
+
+		check_asr(16'h0834, 6'd52, 64'hFFFF_FFFF_FFFF_F800);
+		check_asr(16'h0835, 6'd53, 64'hFFFF_FFFF_FFFF_FC00);
+		check_asr(16'h0836, 6'd54, 64'hFFFF_FFFF_FFFF_FE00);
+		check_asr(16'h0837, 6'd55, 64'hFFFF_FFFF_FFFF_FF00);
+
+		check_asr(16'h0838, 6'd56, 64'hFFFF_FFFF_FFFF_FF80);
+		check_asr(16'h0839, 6'd57, 64'hFFFF_FFFF_FFFF_FFC0);
+		check_asr(16'h083A, 6'd58, 64'hFFFF_FFFF_FFFF_FFE0);
+		check_asr(16'h083B, 6'd59, 64'hFFFF_FFFF_FFFF_FFF0);
+
+		check_asr(16'h083C, 6'd60, 64'hFFFF_FFFF_FFFF_FFF8);
+		check_asr(16'h083D, 6'd61, 64'hFFFF_FFFF_FFFF_FFFC);
+		check_asr(16'h083E, 6'd62, 64'hFFFF_FFFF_FFFF_FFFE);
+		check_asr(16'h083F, 6'd63, 64'hFFFF_FFFF_FFFF_FFFF);
 
 		$display("@DONE");
 		$stop;
