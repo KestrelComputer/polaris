@@ -27,7 +27,7 @@ module test_decode();
 	wire alua_rf_i;
 	wire rf_alu_i;
 	wire [3:0] rmask_i;
-	wire cflag_1_i, sum_en_i, and_en_i, xor_en_i, invB_en_i, lsh_en_i, rsh_en_i;
+	wire cflag_1_i, sum_en_i, and_en_i, xor_en_i, invB_en_i, lsh_en_i, rsh_en_i, ltu_en_i, lts_en_i;
 
 	decode d(
 	);
@@ -125,7 +125,7 @@ module test_decode();
 	endtask
 
 	task assert_alu_op;
-	input cflag_e, sum_en_e, and_en_e, xor_en_e, invB_en_e, lsh_en_e, rsh_en_e;
+	input cflag_e, sum_en_e, and_en_e, xor_en_e, invB_en_e, lsh_en_e, rsh_en_e, ltu_en_e, lts_en_e;
 	begin
 		if(cflag_e !== cflag_1_i) begin
 			$display("@E %04X CFLAG_1_O Expected %d; got %d", cflag_e, cflag_1_i);
@@ -153,6 +153,14 @@ module test_decode();
 		end
 		if(rsh_en_e !== rsh_en_i) begin
 			$display("@E %04X RSH_EN_O Expected %d; got %d", rsh_en_e, rsh_en_i);
+			$stop;
+		end
+		if(ltu_en_e !== ltu_en_i) begin
+			$display("@E %04X LTU_EN_O Expected %d; got %d", ltu_en_e, ltu_en_i);
+			$stop;
+		end
+		if(lts_en_e !== lts_en_i) begin
+			$display("@E %04X LTS_EN_O Expected %d; got %d", lts_en_e, lts_en_i);
 			$stop;
 		end
 	end
@@ -186,7 +194,93 @@ module test_decode();
 		assert_ra_ird(1);
 		assert_rf_alu(1);
 		assert_rmask(4'b1111);
-		assert_alu_op(0,1,0,0,0,0,0);
+		assert_alu_op(0,1,0,0,0,0,0,0,0);
+
+		// While we're here, might as well cycle through our 8 other functions, ya?
+		ir_o <= 32'b000000000010_00000_001_00001_0010011;
+		tick(16'h1002);
+		assert_defined(1);
+		assert_alu_op(0,0,0,0,0,1,0,0,0);
+
+		ir_o <= 32'b000001000010_00000_001_00001_0010011;
+		tick(16'h1102);
+		assert_defined(0);
+
+		ir_o <= 32'b000010000010_00000_001_00001_0010011;
+		tick(16'h1202);
+		assert_defined(0);
+
+		ir_o <= 32'b000100000010_00000_001_00001_0010011;
+		tick(16'h1302);
+		assert_defined(0);
+
+		ir_o <= 32'b001000000010_00000_001_00001_0010011;
+		tick(16'h1402);
+		assert_defined(0);
+
+		ir_o <= 32'b010000000010_00000_001_00001_0010011;
+		tick(16'h1502);
+		assert_defined(0);
+
+		ir_o <= 32'b100000000010_00000_001_00001_0010011;
+		tick(16'h1602);
+		assert_defined(0);
+
+		ir_o <= 32'b000001000010_00000_010_00001_0010011;
+		tick(16'h2002);
+		assert_defined(1);
+		assert_alu_op(1,0,0,0,1,0,0,0,1);
+
+		ir_o <= 32'b000001000010_00000_011_00001_0010011;
+		tick(16'h3002);
+		assert_defined(1);
+		assert_alu_op(1,0,0,0,1,0,0,1,0);
+
+		ir_o <= 32'b000001000010_00000_100_00001_0010011;
+		tick(16'h4002);
+		assert_defined(1);
+		assert_alu_op(0,0,0,1,0,0,0,0,0);
+
+		ir_o <= 32'b000001000010_00000_101_00001_0010011;
+		tick(16'h5002);
+		assert_defined(1);
+		assert_alu_op(0,0,0,0,0,0,1,0,0);
+
+		ir_o <= 32'b010000000010_00000_101_00001_0010011;
+		tick(16'h5102);
+		assert_defined(1);
+		assert_alu_op(1,0,0,0,0,0,1,0,0);
+
+		ir_o <= 32'b010001000010_00000_101_00001_0010011;	// undefined!
+		tick(16'h5202);
+		assert_defined(0);
+
+		ir_o <= 32'b010010000010_00000_101_00001_0010011;	// undefined!
+		tick(16'h5302);
+		assert_defined(0);
+
+		ir_o <= 32'b010100000010_00000_101_00001_0010011;	// undefined!
+		tick(16'h5402);
+		assert_defined(0);
+
+		ir_o <= 32'b011000000010_00000_101_00001_0010011;	// undefined!
+		tick(16'h5502);
+		assert_defined(0);
+
+		ir_o <= 32'b110000000010_00000_101_00001_0010011;	// undefined!
+		tick(16'h5602);
+		assert_defined(0);
+
+		ir_o <= 32'b000001000010_00000_110_00001_0010011;
+		tick(16'h6002);
+		assert_defined(1);
+		assert_alu_op(0,0,1,1,0,0,0,0,0);
+
+		ir_o <= 32'b000001000010_00000_111_00001_0010011;
+		tick(16'h7002);
+		assert_defined(1);
+		assert_alu_op(0,0,1,0,0,0,0,0,0);
+
 
 		state_o <= nstate_i;
 		tick(16'h0003);	// ---- CYCLE 3: Wait for next instruction fetch.
