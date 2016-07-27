@@ -1,8 +1,8 @@
 SIM=iverilog -I rtl/verilog
 
-.PHONY: test fetch
+.PHONY: test fetch xrs alu decode
 
-test: fetch xrs alu
+test: fetch xrs alu decode
 
 fetch:
 	$(SIM) -Wall bench/verilog/fetch.v rtl/verilog/fetch.v
@@ -16,3 +16,6 @@ alu:
 	$(SIM) -Wall bench/verilog/alu.v rtl/verilog/alu.v
 	vvp -n a.out
 
+decode:
+	$(SIM) -Wall bench/verilog/decode.v
+	vvp -n a.out
