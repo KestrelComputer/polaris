@@ -17,5 +17,5 @@ alu:
 	vvp -n a.out
 
 decode:
-	$(SIM) -Wall bench/verilog/decode.v
+	$(SIM) -Wall bench/verilog/decode.v rtl/verilog/decode.v
 	vvp -n a.out
