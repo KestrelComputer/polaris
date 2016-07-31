@@ -4,7 +4,7 @@
 // and other parameters, and yielding one or more minterms to help control
 // other functional units in the CPU.
 
-module decode(
+module decode_op_imm(
 	output		defined_o,
 	output		alua_rf_o,
 	output		alub_imm6i_o,
