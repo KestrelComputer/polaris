@@ -16,8 +16,6 @@ alu:
 	$(SIM) -Wall bench/verilog/alu.v rtl/verilog/alu.v
 	vvp -n a.out
 
-decode: decode_op_imm
-
-decode_op_imm:
-	$(SIM) -Wall bench/verilog/decode_op_imm.v rtl/verilog/decode_op_imm.v
+decode:
+	$(SIM) -Wall bench/verilog/decode.v rtl/verilog/decode.v
 	vvp -n a.out

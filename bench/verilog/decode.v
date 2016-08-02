@@ -2,7 +2,7 @@
 
 // Exercise the instruction decode module.
 
-module test_decode_op_imm();
+module test_decode();
 	reg [23:0] story_o;
 	reg clk_o;
 	reg reset_o;
@@ -21,7 +21,7 @@ module test_decode_op_imm();
 	wire cflag_1_i, sum_en_i, and_en_i, xor_en_i, invB_en_i, lsh_en_i, rsh_en_i, ltu_en_i, lts_en_i, sx32_en_i;
 	wire ir_dat_irl_i;
 
-	decode_op_imm d(
+	decode d(
 		.defined_o(defined_i),
 		.alua_rf_o(alua_rf_i),
 		.alub_imm6i_o(alub_imm6i_i),
