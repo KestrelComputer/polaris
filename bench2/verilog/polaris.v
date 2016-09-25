@@ -116,6 +116,8 @@ module PolarisCPU(
 		.rdat_pc(rdat_pc),
 		.sum_en(sum_en),
 		.pc_alu(pc_alu),
+		.ra_ir1(ra_ir1),
+		.ra_ird(ra_ird),
 		.rst(rst)
 	);
 
@@ -277,7 +279,7 @@ module PolarisCPU_tb();
 		scenario(1);
 
 		$display("@D -TIME- CLK ... ISIZ IADR     JAM ALUOUT  ");
-		$monitor("@D %6d  %b  ...  %2b  %08X  %b %08X ", $time, clk_i, isiz_o, iadr_o[31:0], jammed_o, cpu.aluResult);
+		$monitor("@D %6d  %b  ...  %2b  %08X  %b %016X", $time, clk_i, isiz_o, iadr_o[31:0], jammed_o, cpu.aluResult);
 
 		reset_i <= 1;
 		tick(1);
