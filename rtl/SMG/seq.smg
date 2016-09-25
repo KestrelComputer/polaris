@@ -1,15 +1,37 @@
 [
  [module Sequencer
-  &input  [rst ft0 iack_i
-           [ir "[31:0]"] xt0 xt1 xt2]
-  &output [ft0_o pc_mbvec
-           iadr_pc isiz_2
-           pc_pcPlus4 ir_idat xt0_o
+  &input  [rst
+           ft0 iack_i
+           [ir "[31:0]"]
+           xt0
+           xt1
+           xt2
+           xt3
+	  ]
+  &output [ft0_o
+           pc_mbvec
+           iadr_pc
+           isiz_2
+           pc_pcPlus4
+	   ir_idat
+	   xt0_o
            jammed_o
-           xt1_o xt2_o
-           ra_ir1 ra_ird rdat_alu rwe_o
-           alua_rdat alub_imm12i]
-  &wire   [isOpI]
+           xt1_o
+	   xt2_o
+           ra_ir1
+	   ra_ird
+	   rdat_alu
+	   rdat_pc
+	   rwe_o
+           alua_rdat
+	   alub_imm12i
+           sum_en
+	   xt3_o
+	   pc_alu
+	  ]
+  &wire   [isOpI
+           isJalr
+	  ]
  ]
 
 
@@ -30,7 +52,7 @@
  \\ deadlock.  Detect this, and trap with an illegal instruction
  \\ exception.
 
- [on [~rst ~ft0 ~xt0 ~xt1 ~xt2]	jammed_o]
+ [on [~rst ~ft0 ~xt0 ~xt1 ~xt2 ~xt3]	jammed_o]
 
 
  \\ INSTRUCTION EXECUTION --------------------------------
@@ -40,6 +62,13 @@
 
  [on [~rst xt0 isOpI]		xt1_o ra_ir1]
  [on [~rst xt1 isOpI]		xt2_o alua_rdat alub_imm12i]
- [on [~rst xt2 isOpI]		ra_ird rdat_alu rwe_o ft0_o]
+ [on [~rst xt2 isOpI]		ra_ird rdat_alu sum_en rwe_o ft0_o]
+
+ [on [["ir[6:0]" "7'b1100111"]] isJalr]
+
+ [on [~rst xt0 isJalr]		xt1_o ra_ird rdat_pc rwe_o]
+ [on [~rst xt1 isJalr]		xt2_o ra_ir1]
+ [on [~rst xt2 isJalr]		xt3_o alua_rdat alub_imm12i]
+ [on [~rst xt3 isJalr]		ft0_o pc_alu sum_en]
 ]
 

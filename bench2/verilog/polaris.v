@@ -35,32 +35,46 @@ module PolarisCPU(
 	wire	[63:0]	pc_mux;
 	reg	[31:0]	ir;
 	wire	[31:0]	ir_mux;
-	reg		xt0, xt1, xt2;
-	wire		xt0_o, xt1_o, xt2_o;
+	reg		xt0, xt1, xt2, xt3;
+	wire		xt0_o, xt1_o, xt2_o, xt3_o;
 	wire	[4:0]	ra_mux;
 	wire		ra_ir1, ra_ird;
-	wire		rdat_alu;
+	wire		rdat_alu, rdat_pc;
 	wire	[63:0]	rdat_i, rdat_o;
 	wire		rwe_o;
 	reg	[63:0]	alua, alub;
 	wire	[63:0]	alua_mux, alub_mux;
 	wire		alua_rdat, alub_imm12i;
 	wire	[63:0]	imm12i;
+	wire		pc_alu;
+	wire		cflag_i;
+	wire		sum_en;
+	wire		and_en;
+	wire		xor_en;
+	wire		invB_en;
+	wire		lsh_en;
+	wire		rsh_en;
 	wire	[63:0]	aluResult;
+	wire		cflag_o;
+	wire		vflag_o;
+	wire		zflag_o;
 
-	assign aluResult = 64'hDEAD_BEEF_FEED_FACE;
+	assign {and_en, xor_en, invB_en, lsh_en, rsh_en, cflag_i} = 6'd0;
+
 	assign imm12i = {{52{ir[31]}}, ir[31:25]};
 	assign alua_mux =
 			(alua_rdat ? rdat_o : 0);
 	assign alub_mux =
 			(alub_imm12i ? imm12i : 0);
-	assign rdat_i = (rdat_alu ? aluResult : 0);
+	assign rdat_i = (rdat_alu ? aluResult : 0) |
+			(rdat_pc ? pc : 0);
 	assign ra_mux = (ra_ir1 ? ir[19:15] : 0) |
 			(ra_ird ? ir[11:7] : 0);	// Defaults to 0
 	assign isiz_o = isiz_2 ? 2'b10 : 2'b00;
-	wire pc_pc    = ~|{pc_mbvec,pc_pcPlus4};
+	wire pc_pc    = ~|{pc_mbvec,pc_pcPlus4,pc_alu};
 	assign pc_mux = (pc_mbvec ? 64'hFFFF_FFFF_FFFF_FF00 : 64'h0) |
 			(pc_pcPlus4 ? pc + 4 : 64'h0) |
+			(pc_alu ? aluResult : 64'h0) |
 			(pc_pc ? pc : 64'h0);	// base case
 	assign iadr_o = iadr_pc ? pc : 0;
 	wire ir_ir    = ~ir_idat;
@@ -74,6 +88,7 @@ module PolarisCPU(
 		xt0 <= xt0_o;
 		xt1 <= xt1_o;
 		xt2 <= xt2_o;
+		xt3 <= xt3_o;
 		ir <= ir_mux;
 		alua <= alua_mux;
 		alub <= alub_mux;
@@ -83,9 +98,11 @@ module PolarisCPU(
 		.xt0_o(xt0_o),
 		.xt1_o(xt1_o),
 		.xt2_o(xt2_o),
+		.xt3_o(xt3_o),
 		.xt0(xt0),
 		.xt1(xt1),
 		.xt2(xt2),
+		.xt3(xt3),
 		.jammed_o(jammed_o),
 		.ft0(ft0),
 		.isiz_2(isiz_2),
@@ -96,6 +113,9 @@ module PolarisCPU(
 		.ir_idat(ir_idat),
 		.ir(ir),
 		.ft0_o(ft0_o),
+		.rdat_pc(rdat_pc),
+		.sum_en(sum_en),
+		.pc_alu(pc_alu),
 		.rst(rst)
 	);
 
@@ -106,6 +126,23 @@ module PolarisCPU(
 		.rdat_o(rdat_o),
 		.rmask_i({4{rwe_o}})
 	);
+
+	alu alu(
+		.inA_i(alua),
+		.inB_i(alub),
+		.cflag_i(cflag_i),
+		.sum_en_i(sum_en),
+		.and_en_i(and_en),
+		.xor_en_i(xor_en),
+		.invB_en_i(invB_en),
+		.lsh_en_i(lsh_en),
+		.rsh_en_i(rsh_en),
+		.out_o(aluResult),
+		.cflag_o(cflag_o),
+		.vflag_o(vflag_o),
+		.zflag_o(zflag_o)
+	);
+
 endmodule
 
 module PolarisCPU_tb();
@@ -239,8 +276,8 @@ module PolarisCPU_tb();
 	begin
 		scenario(1);
 
-		$display("@D -TIME- CLK ... ISIZ IADR     JAM ");
-		$monitor("@D %6d  %b  ...  %2b  %08X  %b ", $time, clk_i, isiz_o, iadr_o[31:0], jammed_o);
+		$display("@D -TIME- CLK ... ISIZ IADR     JAM ALUOUT  ");
+		$monitor("@D %6d  %b  ...  %2b  %08X  %b %08X ", $time, clk_i, isiz_o, iadr_o[31:0], jammed_o, cpu.aluResult);
 
 		reset_i <= 1;
 		tick(1);
@@ -255,19 +292,35 @@ module PolarisCPU_tb();
 		tick(3);
 		assert_isiz(2'b00);
 		assert_jammed(0);
-		iack_i <= 0;
 		tick(4);
 		assert_isiz(2'b00);
 		assert_jammed(0);
-		iack_i <= 0;
 		tick(5);
 		assert_isiz(2'b00);
 		assert_jammed(0);
-		iack_i <= 0;
 		tick(6);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF04);
 		assert_isiz(2'b10);
 		assert_jammed(0);
+
+		idat_i <= 32'h0000_0113;	// ADDI X2, X0, 0
+		tick(7);
+		assert_isiz(2'b00);
+		tick(8);
+		assert_isiz(2'b00);
+		tick(9);
+		assert_isiz(2'b00);
+		tick(10);
+
+		assert_isiz(2'b10);
+		idat_i <= 32'h0001_0067;	// JALR X0, 0(X2)
+		tick(11);
+		tick(12);
+		tick(13);
+		tick(14);
+		tick(15);
+		assert_isiz(2'b10);
+		assert_iadr(64'h0000_0000_0000_0000);
 	end
 	endtask
 
