@@ -24,6 +24,7 @@ module PolarisCPU(
 	wire		ft0_o;
 	wire		iadr_pc;
 	wire		isiz_2;
+	wire		ir_idat;
 
 	// Sequencer inputs
 	reg		ft0;
@@ -32,6 +33,8 @@ module PolarisCPU(
 	reg		rst;
 	reg	[63:0]	pc;
 	wire	[63:0]	pc_mux;
+	reg	[31:0]	ir;
+	wire	[31:0]	ir_mux;
 
 	assign isiz_o = isiz_2 ? 2'b10 : 2'b00;
 	wire pc_pc    = ~|{pc_mbvec,pc_pcPlus4};
@@ -39,11 +42,15 @@ module PolarisCPU(
 			(pc_pcPlus4 ? pc + 4 : 64'h0) |
 			(pc_pc ? pc : 64'h0);	// base case
 	assign iadr_o = iadr_pc ? pc : 0;
+	wire ir_ir    = ~ir_idat;
+	assign ir_mux = (ir_idat ? idat_i : 0) |
+			(ir_ir ? ir : 0);	// base case
 
 	always @(posedge clk_i) begin
 		rst <= reset_i;
 		pc <= pc_mux;
 		ft0 <= ft0_o;
+		ir <= ir_mux;
 	end
 
 	Sequencer s(
@@ -54,6 +61,7 @@ module PolarisCPU(
 		.iack_i(iack_i),
 		.pc_mbvec(pc_mbvec),
 		.pc_pcPlus4(pc_pcPlus4),
+		.ir_idat(ir_idat),
 		.ft0_o(ft0_o),
 		.rst(rst)
 	);
@@ -147,7 +155,7 @@ module PolarisCPU_tb();
 		clk_i <= 0;
 		reset_i <= 0;
 		iack_i <= 0;
-		
+		idat_i <= 32'h0000_0013;	// ADDI X0, X0, 0; a NOP insn.
 		scenario(0);
 
 		reset_i <= 1;
