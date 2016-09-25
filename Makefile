@@ -1,8 +1,15 @@
 SIM=iverilog -I rtl/verilog
 
-.PHONY: test fetch xrs alu decode
+.PHONY: test polaris fetch xrs alu decode
 
-test: fetch xrs alu decode
+test: polaris # fetch xrs alu decode
+
+rtl/verilog/seq.v: rtl/SMG/seq.smg
+	smg.shen rtl/SMG/seq.smg >rtl/verilog/seq.v
+
+polaris: rtl/verilog/seq.v
+	$(SIM) -Wall bench2/verilog/polaris.v rtl/verilog/polaris.v rtl/verilog/seq.v
+	vvp -n a.out
 
 fetch:
 	$(SIM) -Wall bench/verilog/fetch.v rtl/verilog/fetch.v
