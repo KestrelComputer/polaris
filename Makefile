@@ -8,7 +8,7 @@ rtl/verilog/seq.v: rtl/SMG/seq.smg
 	smg.shen rtl/SMG/seq.smg >rtl/verilog/seq.v
 
 polaris: rtl/verilog/seq.v
-	$(SIM) -Wall bench2/verilog/polaris.v rtl/verilog/polaris.v rtl/verilog/seq.v
+	$(SIM) -Wall bench2/verilog/polaris.v rtl/verilog/polaris.v rtl/verilog/xrs.v rtl/verilog/seq.v
 	vvp -n a.out
 
 fetch:

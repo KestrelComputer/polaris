@@ -35,7 +35,28 @@ module PolarisCPU(
 	wire	[63:0]	pc_mux;
 	reg	[31:0]	ir;
 	wire	[31:0]	ir_mux;
+	reg		xt0, xt1, xt2;
+	wire		xt0_o, xt1_o, xt2_o;
+	wire	[4:0]	ra_mux;
+	wire		ra_ir1, ra_ird;
+	wire		rdat_alu;
+	wire	[63:0]	rdat_i, rdat_o;
+	wire		rwe_o;
+	reg	[63:0]	alua, alub;
+	wire	[63:0]	alua_mux, alub_mux;
+	wire		alua_rdat, alub_imm12i;
+	wire	[63:0]	imm12i;
+	wire	[63:0]	aluResult;
 
+	assign aluResult = 64'hDEAD_BEEF_FEED_FACE;
+	assign imm12i = {{52{ir[31]}}, ir[31:25]};
+	assign alua_mux =
+			(alua_rdat ? rdat_o : 0);
+	assign alub_mux =
+			(alub_imm12i ? imm12i : 0);
+	assign rdat_i = (rdat_alu ? aluResult : 0);
+	assign ra_mux = (ra_ir1 ? ir[19:15] : 0) |
+			(ra_ird ? ir[11:7] : 0);	// Defaults to 0
 	assign isiz_o = isiz_2 ? 2'b10 : 2'b00;
 	wire pc_pc    = ~|{pc_mbvec,pc_pcPlus4};
 	assign pc_mux = (pc_mbvec ? 64'hFFFF_FFFF_FFFF_FF00 : 64'h0) |
@@ -50,10 +71,21 @@ module PolarisCPU(
 		rst <= reset_i;
 		pc <= pc_mux;
 		ft0 <= ft0_o;
+		xt0 <= xt0_o;
+		xt1 <= xt1_o;
+		xt2 <= xt2_o;
 		ir <= ir_mux;
+		alua <= alua_mux;
+		alub <= alub_mux;
 	end
 
 	Sequencer s(
+		.xt0_o(xt0_o),
+		.xt1_o(xt1_o),
+		.xt2_o(xt2_o),
+		.xt0(xt0),
+		.xt1(xt1),
+		.xt2(xt2),
 		.jammed_o(jammed_o),
 		.ft0(ft0),
 		.isiz_2(isiz_2),
@@ -62,8 +94,17 @@ module PolarisCPU(
 		.pc_mbvec(pc_mbvec),
 		.pc_pcPlus4(pc_pcPlus4),
 		.ir_idat(ir_idat),
+		.ir(ir),
 		.ft0_o(ft0_o),
 		.rst(rst)
+	);
+
+	xrs xrs(
+		.clk_i(clk_i),
+		.ra_i(ra_mux),
+		.rdat_i(rdat_i),
+		.rdat_o(rdat_o),
+		.rmask_i({4{rwe_o}})
 	);
 endmodule
 
@@ -85,6 +126,7 @@ module PolarisCPU_tb();
 		@(clk_i);
 		@(~clk_i);
 		#(`PHASE/2);
+		$display("@S SCENARIO %0d (16'h%X)", story, story);
 	end
 	endtask
 
@@ -148,15 +190,18 @@ module PolarisCPU_tb();
 		.reset_i(reset_i)
 	);
 
-	initial begin
-		$display("@D -TIME- CLK RST ISIZ IADR     JAM ");
-		$monitor("@D %6d  %b   %b   %2b  %08X  %b ", $time, clk_i, reset_i, isiz_o, iadr_o[31:0], jammed_o);
-
+	// Exercise the CPU's behavior on cold reset.
+	task test_bootstrap;
+	begin
 		clk_i <= 0;
 		reset_i <= 0;
 		iack_i <= 0;
-		idat_i <= 32'h0000_0013;	// ADDI X0, X0, 0; a NOP insn.
+		idat_i <= 32'h0000_0000;	// Guaranteed illegal instruction
+
 		scenario(0);
+
+		$display("@D -TIME- CLK RST ISIZ IADR     IACK JAM ");
+		$monitor("@D %6d  %b   %b   %2b  %08X   %b   %b ", $time, clk_i, reset_i, isiz_o, iadr_o[31:0], iack_i, jammed_o);
 
 		reset_i <= 1;
 		tick(1);
@@ -181,8 +226,54 @@ module PolarisCPU_tb();
 		iack_i <= 1;
 		tick(6);
 		assert_isiz(2'b00);
+		assert_jammed(0);
+		tick(7);
+		assert_isiz(2'b00);
 		assert_jammed(1);
 
+	end
+	endtask
+
+	// Exercise the CPU's ability to execute OP-I instructions.
+	task test_op_i;
+	begin
+		scenario(1);
+
+		$display("@D -TIME- CLK ... ISIZ IADR     JAM ");
+		$monitor("@D %6d  %b  ...  %2b  %08X  %b ", $time, clk_i, isiz_o, iadr_o[31:0], jammed_o);
+
+		reset_i <= 1;
+		tick(1);
+		assert_isiz(2'b00);
+		reset_i <= 0;
+		tick(2);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
+		assert_isiz(2'b10);
+		assert_jammed(0);
+		iack_i <= 1;
+		idat_i <= 32'h0000_0013;	// ADDI X0, X0, 0 (aka NOP)
+		tick(3);
+		assert_isiz(2'b00);
+		assert_jammed(0);
+		iack_i <= 0;
+		tick(4);
+		assert_isiz(2'b00);
+		assert_jammed(0);
+		iack_i <= 0;
+		tick(5);
+		assert_isiz(2'b00);
+		assert_jammed(0);
+		iack_i <= 0;
+		tick(6);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF04);
+		assert_isiz(2'b10);
+		assert_jammed(0);
+	end
+	endtask
+
+	initial begin
+		test_bootstrap();
+		test_op_i();
 		$display("@I Done."); $stop;
 	end
 endmodule

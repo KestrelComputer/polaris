@@ -1,12 +1,20 @@
 [
  [module Sequencer
-  &input  [rst ft0 iack_i]
+  &input  [rst ft0 iack_i
+           [ir "[31:0]"] xt0 xt1 xt2]
   &output [ft0_o pc_mbvec
            iadr_pc isiz_2
-           pc_pcPlus4 ir_idat
-           jammed_o]
-  &wire   []
+           pc_pcPlus4 ir_idat xt0_o
+           jammed_o
+           xt1_o xt2_o
+           ra_ir1 ra_ird rdat_alu rwe_o
+           alua_rdat alub_imm12i]
+  &wire   [isOpI]
  ]
+
+
+ \\ INSTRUCTION FETCH ------------------------------------
+
 
  \\ Handle power-on and trap events.
 
@@ -15,12 +23,23 @@
  \\ Handle instruction fetch.
 
  [on [~rst ft0 ~iack_i]		iadr_pc isiz_2 ft0_o]
- [on [~rst ft0 iack_i]		iadr_pc isiz_2 pc_pcPlus4 ir_idat]
+ [on [~rst ft0 iack_i]		iadr_pc isiz_2 pc_pcPlus4 ir_idat xt0_o]
 
  \\ Are we jammed?  If we're not executing an instruction,
  \\ AND we're not fetching an instruction, then the CPU will
  \\ deadlock.  Detect this, and trap with an illegal instruction
  \\ exception.
 
- [on [~rst ~ft0]		jammed_o]
+ [on [~rst ~ft0 ~xt0 ~xt1 ~xt2]	jammed_o]
+
+
+ \\ INSTRUCTION EXECUTION --------------------------------
+
+
+ [on [["ir[6:0]" "7'b0010011"]]	isOpI]
+
+ [on [~rst xt0 isOpI]		xt1_o ra_ir1]
+ [on [~rst xt1 isOpI]		xt2_o alua_rdat alub_imm12i]
+ [on [~rst xt2 isOpI]		ra_ird rdat_alu rwe_o ft0_o]
 ]
+
