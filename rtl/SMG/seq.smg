@@ -36,6 +36,7 @@
 	   and_en
 	   xt3_o
 	   pc_alu
+           sx32_en
 	  ]
   &wire   [isOpI
            isJalr
@@ -76,7 +77,7 @@
  [on [["ir[14:12]" 3'b110]]	fn3_is_110]
  [on [["ir[14:12]" 3'b111]]	fn3_is_111]
 
- [on [["ir[6:0]" "7'b0010011"]]	isOpI]
+ [on [["ir[6:4]" "7'b001"] ["ir[2:0]" "3'b011"]]	isOpI]
 
  [on [~rst xt0 isOpI]		xt1_o ra_ir1]
  [on [~rst xt1 isOpI]		xt2_o alua_rdat alub_imm12i]
@@ -92,6 +93,7 @@
  [on [useAlu fn3_is_110]	and_en xor_en]
  [on [useAlu fn3_is_111]	and_en]
 
+ [on [useAlu "ir[3]"]		sx32_en]
 
  [on [["ir[6:0]" "7'b1100111"]] isJalr]
 

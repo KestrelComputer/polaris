@@ -54,18 +54,20 @@ module PolarisCPU(
 	wire		invB_en;
 	wire		lsh_en;
 	wire		rsh_en;
-	wire	[63:0]	aluResult;
+	wire	[63:0]	aluResult, aluXResult;
 	wire		cflag_o;
 	wire		vflag_o;
 	wire		zflag_o;
 	wire	[3:0]	rmask_i;
+	wire		sx32_en;
 
+	assign aluXResult = (sx32_en ? {{32{aluResult[31]}}, aluResult[31:0]} : aluResult);
 	assign imm12i = {{52{ir[31]}}, ir[31:20]};
 	assign alua_mux =
 			(alua_rdat ? rdat_o : 0);
 	assign alub_mux =
 			(alub_imm12i ? imm12i : 0);
-	assign rdat_i = (rdat_alu ? aluResult : 0) |
+	assign rdat_i = (rdat_alu ? aluXResult : 0) |
 			(rdat_pc ? pc : 0);
 	assign ra_mux = (ra_ir1 ? ir[19:15] : 0) |
 			(ra_ird ? ir[11:7] : 0);	// Defaults to 0
@@ -73,7 +75,7 @@ module PolarisCPU(
 	wire pc_pc    = ~|{pc_mbvec,pc_pcPlus4,pc_alu};
 	assign pc_mux = (pc_mbvec ? 64'hFFFF_FFFF_FFFF_FF00 : 64'h0) |
 			(pc_pcPlus4 ? pc + 4 : 64'h0) |
-			(pc_alu ? aluResult : 64'h0) |
+			(pc_alu ? aluXResult : 64'h0) |
 			(pc_pc ? pc : 64'h0);	// base case
 	assign iadr_o = iadr_pc ? pc : 0;
 	wire ir_ir    = ~ir_idat;
@@ -127,6 +129,7 @@ module PolarisCPU(
 		.lsh_en(lsh_en),
 		.rsh_en(rsh_en),
 		.cflag_i(cflag_i),
+		.sx32_en(sx32_en),
 		.rst(rst)
 	);
 
@@ -375,6 +378,25 @@ module PolarisCPU_tb();
 		tick(44);
 		assert_iadr(64'h0000_0000_0048_0000);
 		assert_isiz(2'b10);
+		// OP-IMM-32
+		idat_i <= 32'b000000000001_00000_000_00011_0010011;
+		tick(50);			// ADDI X3, X0, 1
+		tick(51);
+		tick(52);
+		tick(53);
+		idat_i <= 32'b000000011111_00011_001_00011_0011011;
+		tick(55);			// SLLIW X3, X3, 32
+		tick(56);
+		tick(57);
+		tick(58);
+		idat_i <= 32'b000000000000_00011_000_00000_1100111;
+		tick(60);			// JALR X0, 0(X3)
+		tick(61);
+		tick(62);
+		tick(63);
+		tick(64);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_8000_0000);
 	end
 	endtask
 
