@@ -353,6 +353,28 @@ module PolarisCPU_tb();
 		tick(29);
 		assert_iadr(64'h0000_0000_0000_0128);
 		assert_isiz(2'b10);
+		idat_i <= 32'b000011111111_00010_111_00010_0010011;
+		tick(30);			// X2 = $248
+		tick(31);			// ANDI X2, X2, 255
+		tick(32);
+		tick(33);
+		assert_iadr(64'h0000_0000_0000_012C);
+		assert_isiz(2'b10);
+		idat_i <= 32'b000000010000_00010_001_00010_0010011;
+		tick(35);			// SLLI X2, X2, 16
+		tick(36);
+		tick(37);
+		tick(38);
+		assert_iadr(64'h0000_0000_0000_0130);
+		assert_isiz(2'b10);
+		idat_i <= 32'b000000000000_00010_000_00000_1100111;
+		tick(40);			// JALR X0, 0(X2)
+		tick(41);
+		tick(42);
+		tick(43);
+		tick(44);
+		assert_iadr(64'h0000_0000_0048_0000);
+		assert_isiz(2'b10);
 	end
 	endtask
 
