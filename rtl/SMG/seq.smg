@@ -26,11 +26,21 @@
            alua_rdat
 	   alub_imm12i
            sum_en
+	   lsh_en
+	   cflag_i
+	   invB_en
+	   lts_en
+	   ltu_en
+	   xor_en
+	   rsh_en
+	   and_en
 	   xt3_o
 	   pc_alu
 	  ]
   &wire   [isOpI
            isJalr
+           fn3_is_000 fn3_is_001 fn3_is_010 fn3_is_011 fn3_is_100 fn3_is_101 fn3_is_110 fn3_is_111
+	   useAlu
 	  ]
  ]
 
@@ -55,14 +65,33 @@
  [on [~rst ~ft0 ~xt0 ~xt1 ~xt2 ~xt3]	jammed_o]
 
 
- \\ INSTRUCTION EXECUTION --------------------------------
+ \\ INSTRUCTION DECODE AND EXECUTION ---------------------
 
+ [on [["ir[14:12]" 3'b000]]	fn3_is_000]
+ [on [["ir[14:12]" 3'b001]]	fn3_is_001]
+ [on [["ir[14:12]" 3'b010]]	fn3_is_010]
+ [on [["ir[14:12]" 3'b011]]	fn3_is_011]
+ [on [["ir[14:12]" 3'b100]]	fn3_is_100]
+ [on [["ir[14:12]" 3'b101]]	fn3_is_101]
+ [on [["ir[14:12]" 3'b110]]	fn3_is_110]
+ [on [["ir[14:12]" 3'b111]]	fn3_is_111]
 
  [on [["ir[6:0]" "7'b0010011"]]	isOpI]
 
  [on [~rst xt0 isOpI]		xt1_o ra_ir1]
  [on [~rst xt1 isOpI]		xt2_o alua_rdat alub_imm12i]
- [on [~rst xt2 isOpI]		ra_ird rdat_alu sum_en rwe_o ft0_o]
+ [on [~rst xt2 isOpI]		ra_ird rdat_alu rwe_o useAlu ft0_o]
+
+ [on [useAlu fn3_is_000]	sum_en]
+ [on [useAlu fn3_is_001]	lsh_en]
+ [on [useAlu fn3_is_010]	cflag_i invB_en lts_en]
+ [on [useAlu fn3_is_011]	cflag_i invB_en ltu_en]
+ [on [useAlu fn3_is_100]	xor_en]
+ [on [useAlu fn3_is_101 "~ir[30]"]  rsh_en]
+ [on [useAlu fn3_is_101 "ir[30]"]   rsh_en cflag_i]
+ [on [useAlu fn3_is_110]	and_en xor_en]
+ [on [useAlu fn3_is_111]	and_en]
+
 
  [on [["ir[6:0]" "7'b1100111"]] isJalr]
 

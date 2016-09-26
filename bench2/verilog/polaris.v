@@ -58,10 +58,9 @@ module PolarisCPU(
 	wire		cflag_o;
 	wire		vflag_o;
 	wire		zflag_o;
+	wire	[3:0]	rmask_i;
 
-	assign {and_en, xor_en, invB_en, lsh_en, rsh_en, cflag_i} = 6'd0;
-
-	assign imm12i = {{52{ir[31]}}, ir[31:25]};
+	assign imm12i = {{52{ir[31]}}, ir[31:20]};
 	assign alua_mux =
 			(alua_rdat ? rdat_o : 0);
 	assign alub_mux =
@@ -118,6 +117,16 @@ module PolarisCPU(
 		.pc_alu(pc_alu),
 		.ra_ir1(ra_ir1),
 		.ra_ird(ra_ird),
+		.alua_rdat(alua_rdat),
+		.alub_imm12i(alub_imm12i),
+		.rwe_o(rwe_o),
+		.rdat_alu(rdat_alu),
+		.and_en(and_en),
+		.xor_en(xor_en),
+		.invB_en(invB_en),
+		.lsh_en(lsh_en),
+		.rsh_en(rsh_en),
+		.cflag_i(cflag_i),
 		.rst(rst)
 	);
 
@@ -239,8 +248,8 @@ module PolarisCPU_tb();
 
 		scenario(0);
 
-		$display("@D -TIME- CLK RST ISIZ IADR     IACK JAM ");
-		$monitor("@D %6d  %b   %b   %2b  %08X   %b   %b ", $time, clk_i, reset_i, isiz_o, iadr_o[31:0], iack_i, jammed_o);
+//		$display("@D -TIME- CLK RST ISIZ IADR     IACK JAM ");
+//		$monitor("@D %6d  %b   %b   %2b  %08X   %b   %b ", $time, clk_i, reset_i, isiz_o, iadr_o[31:0], iack_i, jammed_o);
 
 		reset_i <= 1;
 		tick(1);
@@ -278,8 +287,8 @@ module PolarisCPU_tb();
 	begin
 		scenario(1);
 
-		$display("@D -TIME- CLK ... ISIZ IADR     JAM ALUOUT  ");
-		$monitor("@D %6d  %b  ...  %2b  %08X  %b %016X", $time, clk_i, isiz_o, iadr_o[31:0], jammed_o, cpu.aluResult);
+//		$display("@D -TIME- CLK ... ISIZ IADR     JAM ALUOUT  ");
+//		$monitor("@D %6d  %b  ...  %2b  %08X  %b %016X : %08X : %d %d %016X %016X : %016X %016X", $time, clk_i, isiz_o, iadr_o[31:0], jammed_o, cpu.aluResult, cpu.ir, cpu.rwe_o, cpu.ra_mux, cpu.rdat_i, cpu.rdat_o, cpu.alua, cpu.alub);
 
 		reset_i <= 1;
 		tick(1);
@@ -305,7 +314,7 @@ module PolarisCPU_tb();
 		assert_isiz(2'b10);
 		assert_jammed(0);
 
-		idat_i <= 32'h0000_0113;	// ADDI X2, X0, 0
+		idat_i <= 32'h1240_0113;	// ADDI X2, X0, $124
 		tick(7);
 		assert_isiz(2'b00);
 		tick(8);
@@ -313,7 +322,6 @@ module PolarisCPU_tb();
 		tick(9);
 		assert_isiz(2'b00);
 		tick(10);
-
 		assert_isiz(2'b10);
 		idat_i <= 32'h0001_0067;	// JALR X0, 0(X2)
 		tick(11);
@@ -322,7 +330,29 @@ module PolarisCPU_tb();
 		tick(14);
 		tick(15);
 		assert_isiz(2'b10);
-		assert_iadr(64'h0000_0000_0000_0000);
+		assert_iadr(64'h0000_0000_0000_0124);
+		idat_i <= 32'h1241_0113;	// @0124 ADDI X2, X2, $124
+		tick(16);
+		tick(17);
+		tick(18);
+		tick(19);
+		assert_isiz(2'b10);
+		idat_i <= 32'h0001_00E7;	// @0128 JALR X1, 0(X2)
+		tick(20);			// X1 = $12C
+		tick(21);
+		tick(22);
+		tick(23);
+		tick(24);
+		assert_isiz(2'b10);
+		assert_iadr(64'h0000_0000_0000_0248);
+		idat_i <= 32'hFFC0_8067;	// @0248 JALR X0, -4(X1)
+		tick(25);
+		tick(26);
+		tick(27);
+		tick(28);
+		tick(29);
+		assert_iadr(64'h0000_0000_0000_0128);
+		assert_isiz(2'b10);
 	end
 	endtask
 
