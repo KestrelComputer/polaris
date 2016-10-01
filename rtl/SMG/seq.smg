@@ -25,8 +25,11 @@
 	   rdat_pc
 	   rwe_o
            alua_rdat
+           alua_0
+           alua_ia
            alub_rdat
 	   alub_imm12i
+           alub_imm20u
            sum_en
 	   lsh_en
 	   cflag_i
@@ -39,12 +42,14 @@
 	   xt3_o
 	   pc_alu
            sx32_en
+           ia_pc
 	  ]
   &wire   [isOpI
            isOpR
            isJalr
            fn3_is_000 fn3_is_001 fn3_is_010 fn3_is_011 fn3_is_100 fn3_is_101 fn3_is_110 fn3_is_111
 	   useAlu useAlu2
+           isLuiAuipc
 	  ]
  ]
 
@@ -59,7 +64,7 @@
  \\ Handle instruction fetch.
 
  [on [~rst ft0 ~iack_i]		iadr_pc isiz_2 ft0_o]
- [on [~rst ft0 iack_i]		iadr_pc isiz_2 pc_pcPlus4 ir_idat xt0_o]
+ [on [~rst ft0 iack_i]		iadr_pc isiz_2 pc_pcPlus4 ia_pc ir_idat xt0_o]
 
  \\ Are we jammed?  If we're not executing an instruction,
  \\ AND we're not fetching an instruction, then the CPU will
@@ -121,5 +126,11 @@
  [on [~rst xt1 isJalr]		xt2_o ra_ir1]
  [on [~rst xt2 isJalr]		xt3_o alua_rdat alub_imm12i]
  [on [~rst xt3 isJalr]		ft0_o pc_alu sum_en]
+
+ [on ["~ir[6]" ["ir[4:0]" "5'b10111"]]	isLuiAuipc]
+ [on [~rst xt0 isLuiAuipc]		xt1_o alub_imm20u]
+ [on [~rst xt0 isLuiAuipc "ir[5]"]	alua_0]
+ [on [~rst xt0 isLuiAuipc "~ir[5]"]	alua_ia]
+ [on [~rst xt1 isLuiAuipc]		ra_ird rdat_alu rwe_o sum_en ft0_o]
 ]
 

@@ -31,8 +31,8 @@ module PolarisCPU(
 
 	// Internal working wires and registers
 	reg		rst;
-	reg	[63:0]	pc;
-	wire	[63:0]	pc_mux;
+	reg	[63:0]	pc, ia;
+	wire	[63:0]	pc_mux, ia_mux;
 	reg	[31:0]	ir;
 	wire	[31:0]	ir_mux;
 	reg		xt0, xt1, xt2, xt3;
@@ -44,7 +44,8 @@ module PolarisCPU(
 	wire		rwe_o;
 	reg	[63:0]	alua, alub;
 	wire	[63:0]	alua_mux, alub_mux;
-	wire		alua_rdat, alub_imm12i, alub_rdat;
+	wire		alua_rdat, alua_0, alua_ia;
+	wire		alub_rdat, alub_imm12i, alub_imm20u;
 	wire	[63:0]	imm12i;
 	wire		pc_alu;
 	wire		cflag_i;
@@ -62,17 +63,22 @@ module PolarisCPU(
 	wire		sx32_en;
 	wire		alua_alua;
 	wire		alub_alub;
+	wire	[63:0]	imm20u;
+	wire		ia_pc;
 
 	assign aluXResult = (sx32_en ? {{32{aluResult[31]}}, aluResult[31:0]} : aluResult);
 	assign imm12i = {{52{ir[31]}}, ir[31:20]};
-	assign alua_alua = ~alua_rdat;
-	assign alub_alub = ~|{alub_rdat, alub_imm12i};
-	assign alua_mux =
+	assign imm20u = {{32{ir[31]}}, ir[31:12], 12'd0};
+	assign alua_alua = ~|{alua_rdat, alua_0, alua_ia};
+	assign alub_alub = ~|{alub_rdat, alub_imm12i, alub_imm20u};
+	assign alua_mux =	// ignore alua_0 since that will force alua=0.
+			(alua_ia ? ia : 0) |
 			(alua_rdat ? rdat_o : 0) |
 			(alua_alua ? alua : 0);
 	assign alub_mux =
 			(alub_rdat ? rdat_o : 0) |
 			(alub_imm12i ? imm12i : 0) |
+			(alub_imm20u ? imm20u : 0) |
 			(alub_alub ? alub : 0);
 	assign rdat_i = (rdat_alu ? aluXResult : 0) |
 			(rdat_pc ? pc : 0);
@@ -85,6 +91,9 @@ module PolarisCPU(
 			(pc_pcPlus4 ? pc + 4 : 64'h0) |
 			(pc_alu ? aluXResult : 64'h0) |
 			(pc_pc ? pc : 64'h0);	// base case
+	wire ia_ia    = ~ia_pc;
+        assign ia_mux = (ia_pc ? pc : 0) |
+			(ia_ia ? ia : 0);
 	assign iadr_o = iadr_pc ? pc : 0;
 	wire ir_ir    = ~ir_idat;
 	assign ir_mux = (ir_idat ? idat_i : 0) |
@@ -93,6 +102,7 @@ module PolarisCPU(
 	always @(posedge clk_i) begin
 		rst <= reset_i;
 		pc <= pc_mux;
+		ia <= ia_mux;
 		ft0 <= ft0_o;
 		xt0 <= xt0_o;
 		xt1 <= xt1_o;
@@ -140,6 +150,10 @@ module PolarisCPU(
 		.rsh_en(rsh_en),
 		.cflag_i(cflag_i),
 		.sx32_en(sx32_en),
+		.alua_0(alua_0),
+		.alub_imm20u(alub_imm20u),
+		.ia_pc(ia_pc),
+		.alua_ia(alua_ia),
 		.rst(rst)
 	);
 
@@ -516,10 +530,68 @@ module PolarisCPU_tb();
 	end
 	endtask
 
+	// Exercise the CPU's ability to execute OP-R instructions.
+	task test_lui_auipc;
+	begin
+		scenario(3);
+
+		$display("@D -TIME- CLK ... ISIZ IADR     JAM ALUOUT  ");
+		$monitor("@D %6d  %b  ...  %2b  %08X  %b %016X : %08X : %d %d %016X %016X : %016X %016X", $time, clk_i, isiz_o, iadr_o[31:0], jammed_o, cpu.aluResult, cpu.ir, cpu.rwe_o, cpu.ra_mux, cpu.rdat_i, cpu.rdat_o, cpu.alua, cpu.alub);
+
+		reset_i <= 1;
+		tick(1);
+		assert_isiz(2'b00);
+		reset_i <= 0;
+		tick(2);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
+		assert_isiz(2'b10);
+		assert_jammed(0);
+		iack_i <= 1;
+
+
+		// LUI X2, $DEADBEEF
+		idat_i <= 32'b1101_1110_1010_1101_1011_00010_0110111;
+		tick(10);
+		tick(11);
+		tick(12);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF04);
+
+		// JALR X0, 0(X2)
+		idat_i <= 32'b000000000000_00010_000_00000_1100111;
+		tick(20);
+		tick(21);
+		tick(22);
+		tick(23);
+		tick(24);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_DEAD_B000);
+
+		// AUIPC X5, *+$524000
+		idat_i <= 32'b0000_0000_0101_0010_0100_00101_0010111;
+		tick(30);
+		tick(31);
+		tick(32);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_DEAD_B004);
+
+		// JALR X0, 0(X5)
+		idat_i <= 32'b000000000000_00101_000_00000_1100111;
+		tick(40);
+		tick(41);
+		tick(42);
+		tick(43);
+		tick(44);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_DEFF_F000);
+	end
+	endtask
+
 	initial begin
 		test_bootstrap();
 		test_op_i();
 		test_op_r();
+		test_lui_auipc();
 		$display("@I Done."); $stop;
 	end
 endmodule
