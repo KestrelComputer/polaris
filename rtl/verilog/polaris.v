@@ -47,8 +47,8 @@ module PolarisCPU(
 	wire	[63:0]	pc_mux, ia_mux;
 	reg	[31:0]	ir;
 	wire	[31:0]	ir_mux;
-	reg		xt0, xt1, xt2, xt3;
-	wire		xt0_o, xt1_o, xt2_o, xt3_o;
+	reg		xt0, xt1, xt2, xt3, xt4;
+	wire		xt0_o, xt1_o, xt2_o, xt3_o, xt4_o;
 	wire	[4:0]	ra_mux;
 	wire		ra_ir1, ra_ir2, ra_ird;
 	wire		rdat_alu, rdat_pc;
@@ -58,7 +58,7 @@ module PolarisCPU(
 	wire	[63:0]	alua_mux, alub_mux;
 	wire		alua_rdat, alua_0, alua_ia;
 	wire		alub_rdat, alub_imm12i, alub_imm12s, alub_imm20u, alub_imm20uj;
-	wire	[63:0]	imm12i, imm12s;
+	wire	[63:0]	imm12i, imm12s, imm12sb;
 	wire		pc_alu;
 	wire		cflag_i;
 	wire		sum_en;
@@ -83,7 +83,13 @@ module PolarisCPU(
 	wire		dsiz_fn3;
 	wire		rdat_ddat;
 	wire		ddat_rdat;
+	wire	[7:0]	ccr_mux;
+	reg	[7:0]	ccr;
+	wire		ccr_alu;
+	wire		alub_imm12sb;
 
+	wire ltFlag = aluXResult[63] ^ vflag_o;
+	assign ccr_mux = ccr_alu ? {cflag_o, ~cflag_o, ~ltFlag, ltFlag, 2'b00, ~zflag_o, zflag_o} : ccr;
 	assign dsigned_o = dsiz_fn3 & ~ir[14];
 	assign dsiz_o = dsiz_fn3 ? ir[13:12] : 2'b00;
 	assign dcyc_o = dcyc_1;
@@ -94,10 +100,11 @@ module PolarisCPU(
 	assign aluXResult = (sx32_en ? {{32{aluResult[31]}}, aluResult[31:0]} : aluResult);
 	assign imm12i = {{52{ir[31]}}, ir[31:20]};
 	assign imm12s = {{52{ir[31]}}, ir[31:25], ir[11:7]};
+	assign imm12sb = {{51{ir[31]}}, ir[31], ir[7], ir[30:25], ir[11:8], 1'b0};
 	assign imm20u = {{32{ir[31]}}, ir[31:12], 12'd0};
 	assign imm20uj = {{43{ir[31]}}, ir[31], ir[19:12], ir[20], ir[30:21], 1'b0};
 	assign alua_alua = ~|{alua_rdat, alua_0, alua_ia};
-	assign alub_alub = ~|{alub_rdat, alub_imm12i, alub_imm12s, alub_imm20u, alub_imm20uj};
+	assign alub_alub = ~|{alub_rdat, alub_imm12i, alub_imm12s, alub_imm12sb, alub_imm20u, alub_imm20uj};
 	assign alua_mux =	// ignore alua_0 since that will force alua=0.
 			(alua_ia ? ia : 0) |
 			(alua_rdat ? rdat_o : 0) |
@@ -106,6 +113,7 @@ module PolarisCPU(
 			(alub_rdat ? rdat_o : 0) |
 			(alub_imm12i ? imm12i : 0) |
 			(alub_imm12s ? imm12s : 0) |
+			(alub_imm12sb ? imm12sb : 0) |
 			(alub_imm20u ? imm20u : 0) |
 			(alub_imm20uj ? imm20uj : 0) |
 			(alub_alub ? alub : 0);
@@ -138,9 +146,11 @@ module PolarisCPU(
 		xt1 <= xt1_o;
 		xt2 <= xt2_o;
 		xt3 <= xt3_o;
+		xt4 <= xt4_o;
 		ir <= ir_mux;
 		alua <= alua_mux;
 		alub <= alub_mux;
+		ccr <= ccr_mux;
 	end
 
 	Sequencer s(
@@ -194,6 +204,11 @@ module PolarisCPU(
 		.alub_imm12s(alub_imm12s),
 		.dwe_o(dwe_o),
 		.alub_imm20uj(alub_imm20uj),
+		.ccr_alu(ccr_alu),
+		.alub_imm12sb(alub_imm12sb),
+		.xt4_o(xt4_o),
+		.xt4(xt4),
+		.ccr(ccr),
 		.rst(rst)
 	);
 

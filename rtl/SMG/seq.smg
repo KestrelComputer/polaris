@@ -7,6 +7,8 @@
            xt1
            xt2
            xt3
+           xt4
+           [ccr "[7:0]"]
           ]
   &output [ft0_o
            pc_mbvec
@@ -52,6 +54,9 @@
            rdat_ddat
            ddat_rdat
            dwe_o
+           ccr_alu
+           alub_imm12sb
+           xt4_o
           ]
   &wire   [isOpI
            isOpR
@@ -62,6 +67,7 @@
            isLoad
            isStore
            isJal
+           isBr
           ]
  ]
 
@@ -162,5 +168,20 @@
  [on [~rst xt1 isStore]                 xt2_o alua_rdat alub_imm12s ra_ir2]
  [on [~rst xt2 isStore ~dack_i]         xt2_o sum_en dadr_alu dcyc_1 dstb_1 dsiz_fn3 ddat_rdat ra_ir2 dwe_o]
  [on [~rst xt2 isStore dack_i]          sum_en dadr_alu dcyc_1 dstb_1 dsiz_fn3 ddat_rdat dwe_o ft0_o]
+
+ [on [["ir[6:0]" "7'b1100011"]]         isBr]
+
+ [on [~rst xt0 isBr]                    xt1_o ra_ir1]
+ [on [~rst xt1 isBr]                    xt2_o ra_ir2 alua_rdat]
+ [on [~rst xt2 isBr]                    xt3_o alub_rdat]
+ [on [~rst xt3 isBr]                    xt4_o sum_en invB_en cflag_i ccr_alu alua_ia alub_imm12sb]
+ [on [~rst xt4 isBr]                    ft0_o sum_en]
+
+ [on [isBr xt4 fn3_is_000 "ccr[0]"]     pc_alu]
+ [on [isBr xt4 fn3_is_001 "ccr[1]"]     pc_alu]
+ [on [isBr xt4 fn3_is_100 "ccr[4]"]     pc_alu]
+ [on [isBr xt4 fn3_is_101 "ccr[5]"]     pc_alu]
+ [on [isBr xt4 fn3_is_110 "ccr[6]"]     pc_alu]
+ [on [isBr xt4 fn3_is_111 "ccr[7]"]     pc_alu]
 ]
 

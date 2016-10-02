@@ -646,6 +646,250 @@ module PolarisCPU_tb();
 	end
 	endtask
 
+	task test_b;
+	begin
+		scenario(6);
+
+//		$display("@D -TIME- CLK . IADR");
+//		$monitor("@D %6d  %b  .  %016X", $time, clk_i, iadr_o);
+
+		reset_i <= 1;
+		tick(1);
+		assert_isiz(2'b00);
+		assert_dsiz(2'b00);
+		assert_dsigned(0);
+		assert_dwe(0);
+		reset_i <= 0;
+		tick(2);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
+		assert_isiz(2'b10);
+		assert_jammed(0);
+		iack_i <= 1;
+
+		//	addi	x1, x0, 0
+		idat_i <= 32'b0000_0000_0000_00000_000_00001_0010011;
+		tick(10);
+		tick(11);
+		tick(12);
+		tick(13);
+		assert_isiz(2'b10);
+
+		//	beq	x1, x0, *+16
+		idat_i <= 32'b0000000_00000_00001_000_10000_1100011;
+		tick(20);
+		tick(21);
+		tick(22);
+		tick(23);
+		tick(24);
+		tick(25);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF14);
+
+		//	bne	x1, x0, *+16
+		idat_i <= 32'b0000000_00000_00001_001_10000_1100011;
+		tick(30);
+		tick(31);
+		tick(32);
+		tick(33);
+		tick(34);
+		tick(35);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF18);
+
+		//	blt	x1, x0, *+16
+		idat_i <= 32'b0000000_00000_00001_100_10000_1100011;
+		tick(40);
+		tick(41);
+		tick(42);
+		tick(43);
+		tick(44);
+		tick(45);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF1C);
+
+		//	bge	x1, x0, *+16
+		idat_i <= 32'b0000000_00000_00001_101_10000_1100011;
+		tick(50);
+		tick(51);
+		tick(52);
+		tick(53);
+		tick(54);
+		tick(55);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF2C);
+
+		//	bltu	x1, x0, *+16
+		idat_i <= 32'b0000000_00000_00001_110_10000_1100011;
+		tick(60);
+		tick(61);
+		tick(62);
+		tick(63);
+		tick(64);
+		tick(65);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF30);
+
+		//	bgeu	x1, x0, *+16
+		idat_i <= 32'b0000000_00000_00001_111_10000_1100011;
+		tick(70);
+		tick(71);
+		tick(72);
+		tick(73);
+		tick(74);
+		tick(75);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF40);
+
+		//	addi	x1, x0, -1
+		idat_i <= 32'b1111_1111_1111_00000_000_00001_0010011;
+		tick(110);
+		tick(111);
+		tick(112);
+		tick(113);
+		assert_isiz(2'b10);
+
+		//	beq	x1, x0, *+16
+		idat_i <= 32'b0000000_00000_00001_000_10000_1100011;
+		tick(120);
+		tick(121);
+		tick(122);
+		tick(123);
+		tick(124);
+		tick(125);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF48);
+
+		//	bne	x1, x0, *+16
+		idat_i <= 32'b0000000_00000_00001_001_10000_1100011;
+		tick(130);
+		tick(131);
+		tick(132);
+		tick(133);
+		tick(134);
+		tick(135);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF58);
+
+		//	blt	x1, x0, *+16
+		idat_i <= 32'b0000000_00000_00001_100_10000_1100011;
+		tick(140);
+		tick(141);
+		tick(142);
+		tick(143);
+		tick(144);
+		tick(145);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF68);
+
+		//	bge	x1, x0, *+16
+		idat_i <= 32'b0000000_00000_00001_101_10000_1100011;
+		tick(150);
+		tick(151);
+		tick(152);
+		tick(153);
+		tick(154);
+		tick(155);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF6C);
+
+		//	bltu	x1, x0, *+16
+		idat_i <= 32'b0000000_00000_00001_110_10000_1100011;
+		tick(160);
+		tick(161);
+		tick(162);
+		tick(163);
+		tick(164);
+		tick(165);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF70);
+
+		//	bgeu	x1, x0, *+16
+		idat_i <= 32'b0000000_00000_00001_111_10000_1100011;
+		tick(170);
+		tick(171);
+		tick(172);
+		tick(173);
+		tick(174);
+		tick(175);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF80);
+
+		//	addi	x1, x0, 1
+		idat_i <= 32'b0000_0000_0001_00000_000_00001_0010011;
+		tick(210);
+		tick(211);
+		tick(212);
+		tick(213);
+		assert_isiz(2'b10);
+
+		//	beq	x1, x0, *+16
+		idat_i <= 32'b0000000_00000_00001_000_10000_1100011;
+		tick(220);
+		tick(221);
+		tick(222);
+		tick(223);
+		tick(224);
+		tick(225);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF88);
+
+		//	bne	x1, x0, *+16
+		idat_i <= 32'b0000000_00000_00001_001_10000_1100011;
+		tick(230);
+		tick(231);
+		tick(232);
+		tick(233);
+		tick(234);
+		tick(235);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF98);
+
+		//	blt	x1, x0, *+16
+		idat_i <= 32'b0000000_00000_00001_100_10000_1100011;
+		tick(240);
+		tick(241);
+		tick(242);
+		tick(243);
+		tick(244);
+		tick(245);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF9C);
+
+		//	bge	x1, x0, *+16
+		idat_i <= 32'b0000000_00000_00001_101_10000_1100011;
+		tick(250);
+		tick(251);
+		tick(252);
+		tick(253);
+		tick(254);
+		tick(255);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FFAC);
+
+		//	bltu	x1, x0, *+16
+		idat_i <= 32'b0000000_00000_00001_110_10000_1100011;
+		tick(260);
+		tick(261);
+		tick(262);
+		tick(263);
+		tick(264);
+		tick(265);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FFB0);
+
+		//	bgeu	x1, x0, *+16
+		idat_i <= 32'b0000000_00000_00001_111_10000_1100011;
+		tick(270);
+		tick(271);
+		tick(272);
+		tick(273);
+		tick(274);
+		tick(275);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FFC0);
+	end
+	endtask
+
 	initial begin
 		clk_i <= 0;
 		reset_i <= 0;
@@ -660,6 +904,7 @@ module PolarisCPU_tb();
 		test_lui_auipc();
 		test_ld_st();
 		test_jal();
+		test_b();
 		$display("@I Done."); $stop;
 	end
 endmodule
