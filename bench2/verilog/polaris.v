@@ -82,6 +82,16 @@ module PolarisCPU_tb();
 	end
 	endtask
 
+	task assert_ddat;
+	input [63:0] expected;
+	begin
+		if(ddat_o !== expected) begin
+		$display("@E %08X DDAT_O Expected=%016X Got=%016X", story_o, expected, ddat_o);
+		$stop;
+		end
+	end
+	endtask
+
 	task assert_dsiz;
 	input [1:0] expected;
 	begin
@@ -486,8 +496,8 @@ module PolarisCPU_tb();
 	begin
 		scenario(4);
 
-		$display("@D -TIME- CLK . DWE RA RDATA........... RWE ");
-		$monitor("@D %6d  %b  .  %b   %d %016X %d   ", $time, clk_i, cpu.dwe_o, cpu.ra_mux, cpu.rdat_i, cpu.rwe_o);
+//		$display("@D -TIME- CLK . FT0 ALURESULT........ ALUB............ IMM12S");
+//		$monitor("@D %6d  %b  .  %b  %016X %016X %06X %b %08X", $time, clk_i, cpu.ft0, cpu.aluXResult, cpu.alub, cpu.imm12s, cpu.alub_imm12s, cpu.ir);
 
 		reset_i <= 1;
 		tick(1);
@@ -555,6 +565,40 @@ module PolarisCPU_tb();
 		assert_dsigned(1);
 		assert_dwe(0);
 		assert_dadr(64'h0000_0000_0001_0000);
+
+		ddat_i <= 64'h0000_0000_0000_FFFC;
+		dack_i <= 1;
+		tick(35);
+		assert_dcyc(0);
+		assert_dstb(0);
+		assert_isiz(2'b10);
+
+		// SD X1, 12(X1)
+		idat_i <= 32'b0000000_00001_00001_011_01100_0100011;
+		dack_i <= 0;
+		tick(40);
+		tick(41);
+		tick(42);
+		assert_dcyc(1);
+		assert_dstb(1);
+		assert_dsiz(2'b11);
+		assert_dwe(1);
+		assert_dadr(64'h0000_0000_0001_0008);
+		assert_ddat(64'h0000_0000_0000_FFFC);
+
+		tick(43);
+		assert_dcyc(1);
+		assert_dstb(1);
+		assert_dsiz(2'b11);
+		assert_dwe(1);
+		assert_dadr(64'h0000_0000_0001_0008);
+		assert_ddat(64'h0000_0000_0000_FFFC);
+
+		dack_i <= 1;
+		tick(44);
+		assert_dcyc(0);
+		assert_dstb(0);
+		assert_isiz(2'b10);
 	end
 	endtask
 

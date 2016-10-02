@@ -57,8 +57,8 @@ module PolarisCPU(
 	reg	[63:0]	alua, alub;
 	wire	[63:0]	alua_mux, alub_mux;
 	wire		alua_rdat, alua_0, alua_ia;
-	wire		alub_rdat, alub_imm12i, alub_imm20u;
-	wire	[63:0]	imm12i;
+	wire		alub_rdat, alub_imm12i, alub_imm12s, alub_imm20u;
+	wire	[63:0]	imm12i, imm12s;
 	wire		pc_alu;
 	wire		cflag_i;
 	wire		sum_en;
@@ -82,19 +82,21 @@ module PolarisCPU(
 	wire		dstb_1;
 	wire		dsiz_fn3;
 	wire		rdat_ddat;
+	wire		ddat_rdat;
 
 	assign dsigned_o = dsiz_fn3 & ~ir[14];
 	assign dsiz_o = dsiz_fn3 ? ir[13:12] : 2'b00;
-	assign dwe_o = 0;
 	assign dcyc_o = dcyc_1;
 	assign dstb_o = dstb_1;
 	assign dadr_o = (dadr_alu ? aluXResult : 64'd0);
+	assign ddat_o = (ddat_rdat ? rdat_o : 0);
 
 	assign aluXResult = (sx32_en ? {{32{aluResult[31]}}, aluResult[31:0]} : aluResult);
 	assign imm12i = {{52{ir[31]}}, ir[31:20]};
+	assign imm12s = {{52{ir[31]}}, ir[31:25], ir[11:7]};
 	assign imm20u = {{32{ir[31]}}, ir[31:12], 12'd0};
 	assign alua_alua = ~|{alua_rdat, alua_0, alua_ia};
-	assign alub_alub = ~|{alub_rdat, alub_imm12i, alub_imm20u};
+	assign alub_alub = ~|{alub_rdat, alub_imm12i, alub_imm12s, alub_imm20u};
 	assign alua_mux =	// ignore alua_0 since that will force alua=0.
 			(alua_ia ? ia : 0) |
 			(alua_rdat ? rdat_o : 0) |
@@ -102,6 +104,7 @@ module PolarisCPU(
 	assign alub_mux =
 			(alub_rdat ? rdat_o : 0) |
 			(alub_imm12i ? imm12i : 0) |
+			(alub_imm12s ? imm12s : 0) |
 			(alub_imm20u ? imm20u : 0) |
 			(alub_alub ? alub : 0);
 	assign rdat_i = (rdat_alu ? aluXResult : 0) |
@@ -185,6 +188,9 @@ module PolarisCPU(
 		.dsiz_fn3(dsiz_fn3),
 		.rdat_ddat(rdat_ddat),
 		.dack_i(dack_i),
+		.ddat_rdat(ddat_rdat),
+		.alub_imm12s(alub_imm12s),
+		.dwe_o(dwe_o),
 		.rst(rst)
 	);
 

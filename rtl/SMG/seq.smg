@@ -29,6 +29,7 @@
            alua_ia
            alub_rdat
            alub_imm12i
+           alub_imm12s
            alub_imm20u
            sum_en
            lsh_en
@@ -48,6 +49,8 @@
            dstb_1
            dsiz_fn3
            rdat_ddat
+           ddat_rdat
+           dwe_o
           ]
   &wire   [isOpI
            isOpR
@@ -56,6 +59,7 @@
            useAlu useAlu2
            isLuiAuipc
            isLoad
+           isStore
           ]
  ]
 
@@ -139,11 +143,17 @@
  [on [~rst xt0 isLuiAuipc "~ir[5]"]     alua_ia]
  [on [~rst xt1 isLuiAuipc]              ra_ird rdat_alu rwe_o sum_en ft0_o]
 
- [on [["ir[6:0]" "7'b0000011"]]           isLoad]
+ [on [["ir[6:0]" "7'b0000011"]]         isLoad]
+ [on [["ir[6:0]" "7'b0100011"]]         isStore]
 
  [on [~rst xt0 isLoad]                  xt1_o ra_ir1]
  [on [~rst xt1 isLoad]                  xt2_o alua_rdat alub_imm12i]
  [on [~rst xt2 isLoad ~dack_i]          xt2_o sum_en dadr_alu dcyc_1 dstb_1 dsiz_fn3]
- [on [~rst xt2 isLoad dack_i]           sum_en dadr_alu dcyc_1 dstb_1 dsiz_fn3  ra_ird rwe_o rdat_ddat  ft0_o]
+ [on [~rst xt2 isLoad dack_i]           sum_en dadr_alu dcyc_1 dstb_1 dsiz_fn3 ra_ird  rwe_o rdat_ddat  ft0_o]
+
+ [on [~rst xt0 isStore]                 xt1_o ra_ir1]
+ [on [~rst xt1 isStore]                 xt2_o alua_rdat alub_imm12s ra_ir2]
+ [on [~rst xt2 isStore ~dack_i]         xt2_o sum_en dadr_alu dcyc_1 dstb_1 dsiz_fn3 ddat_rdat ra_ir2 dwe_o]
+ [on [~rst xt2 isStore dack_i]          sum_en dadr_alu dcyc_1 dstb_1 dsiz_fn3 ddat_rdat dwe_o ft0_o]
 ]
 
