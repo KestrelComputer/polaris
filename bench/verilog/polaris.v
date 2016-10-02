@@ -602,6 +602,50 @@ module PolarisCPU_tb();
 	end
 	endtask
 
+	task test_jal;
+	begin
+		scenario(5);
+
+//		$display("@D -TIME- CLK . IADR");
+//		$monitor("@D %6d  %b  .  %016X", $time, clk_i, iadr_o);
+
+		reset_i <= 1;
+		tick(1);
+		assert_isiz(2'b00);
+		assert_dsiz(2'b00);
+		assert_dsigned(0);
+		assert_dwe(0);
+		reset_i <= 0;
+		tick(2);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
+		assert_isiz(2'b10);
+		assert_jammed(0);
+		iack_i <= 1;
+
+
+		// JAL X5, *-$FF00
+		idat_i <= 32'b1001_0000_0000_1111_0000_00101_1101111;
+		tick(10);
+		tick(11);
+		tick(12);
+		tick(13);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_0000);
+
+		// SD X5, 0(X0)
+		idat_i <= 32'b0000000_00101_00000_011_00000_0100011;
+		tick(20);
+		tick(21);
+		tick(22);
+		assert_dsiz(2'b11);
+		assert_dcyc(1);
+		assert_dstb(1);
+		assert_dadr(64'd0);
+		assert_ddat(64'hFFFF_FFFF_FFFF_FF04);
+		assert_dwe(1);
+	end
+	endtask
+
 	initial begin
 		clk_i <= 0;
 		reset_i <= 0;
@@ -615,6 +659,7 @@ module PolarisCPU_tb();
 		test_op_r();
 		test_lui_auipc();
 		test_ld_st();
+		test_jal();
 		$display("@I Done."); $stop;
 	end
 endmodule

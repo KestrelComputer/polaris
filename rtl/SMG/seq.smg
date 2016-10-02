@@ -31,6 +31,7 @@
            alub_imm12i
            alub_imm12s
            alub_imm20u
+           alub_imm20uj
            sum_en
            lsh_en
            cflag_i
@@ -60,6 +61,7 @@
            isLuiAuipc
            isLoad
            isStore
+           isJal
           ]
  ]
 
@@ -131,11 +133,16 @@
  [on [useAlu2 "ir[3]"]          sx32_en]
 
  [on [["ir[6:0]" "7'b1100111"]] isJalr]
+ [on [["ir[6:0]" "7'b1101111"]] isJal]
 
  [on [~rst xt0 isJalr]          xt1_o ra_ird rdat_pc rwe_o]
  [on [~rst xt1 isJalr]          xt2_o ra_ir1]
  [on [~rst xt2 isJalr]          xt3_o alua_rdat alub_imm12i]
  [on [~rst xt3 isJalr]          ft0_o pc_alu sum_en]
+
+ [on [~rst xt0 isJal]           xt1_o ra_ird rdat_pc rwe_o]
+ [on [~rst xt1 isJal]           xt2_o alua_ia alub_imm20uj]
+ [on [~rst xt2 isJal]           ft0_o pc_alu sum_en]
 
  [on ["~ir[6]" ["ir[4:0]" "5'b10111"]]  isLuiAuipc]
  [on [~rst xt0 isLuiAuipc]              xt1_o alub_imm20u]
