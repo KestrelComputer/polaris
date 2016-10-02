@@ -14,6 +14,18 @@ module PolarisCPU(
 	output	[63:0]		iadr_o,
 	output	[1:0]		isiz_o,
 
+	// D MASTER
+
+	input			dack_i,
+	input	[63:0]		ddat_i,
+	output	[63:0]		ddat_o,
+	output	[63:0]		dadr_o,
+	output			dwe_o,
+	output			dcyc_o,
+	output			dstb_o,
+	output	[1:0]		dsiz_o,
+	output			dsigned_o,
+
 	// SYSCON
 
 	input			clk_i,
@@ -65,6 +77,18 @@ module PolarisCPU(
 	wire		alub_alub;
 	wire	[63:0]	imm20u;
 	wire		ia_pc;
+	wire		dadr_alu;
+	wire		dcyc_1;
+	wire		dstb_1;
+	wire		dsiz_fn3;
+	wire		rdat_ddat;
+
+	assign dsigned_o = dsiz_fn3 & ~ir[14];
+	assign dsiz_o = dsiz_fn3 ? ir[13:12] : 2'b00;
+	assign dwe_o = 0;
+	assign dcyc_o = dcyc_1;
+	assign dstb_o = dstb_1;
+	assign dadr_o = (dadr_alu ? aluXResult : 64'd0);
 
 	assign aluXResult = (sx32_en ? {{32{aluResult[31]}}, aluResult[31:0]} : aluResult);
 	assign imm12i = {{52{ir[31]}}, ir[31:20]};
@@ -81,6 +105,7 @@ module PolarisCPU(
 			(alub_imm20u ? imm20u : 0) |
 			(alub_alub ? alub : 0);
 	assign rdat_i = (rdat_alu ? aluXResult : 0) |
+			(rdat_ddat ? ddat_i : 0) |
 			(rdat_pc ? pc : 0);
 	assign ra_mux = (ra_ir1 ? ir[19:15] : 0) |
 			(ra_ir2 ? ir[24:20] : 0) |
@@ -154,6 +179,12 @@ module PolarisCPU(
 		.alub_imm20u(alub_imm20u),
 		.ia_pc(ia_pc),
 		.alua_ia(alua_ia),
+		.dadr_alu(dadr_alu),
+		.dcyc_1(dcyc_1),
+		.dstb_1(dstb_1),
+		.dsiz_fn3(dsiz_fn3),
+		.rdat_ddat(rdat_ddat),
+		.dack_i(dack_i),
 		.rst(rst)
 	);
 

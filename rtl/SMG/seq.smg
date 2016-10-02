@@ -1,56 +1,62 @@
 [
  [module Sequencer
   &input  [rst
-           ft0 iack_i
+           ft0 iack_i dack_i
            [ir "[31:0]"]
            xt0
            xt1
            xt2
            xt3
-	  ]
+          ]
   &output [ft0_o
            pc_mbvec
            iadr_pc
            isiz_2
            pc_pcPlus4
-	   ir_idat
-	   xt0_o
+           ir_idat
+           xt0_o
            jammed_o
            xt1_o
-	   xt2_o
+           xt2_o
            ra_ir1
            ra_ir2
-	   ra_ird
-	   rdat_alu
-	   rdat_pc
-	   rwe_o
+           ra_ird
+           rdat_alu
+           rdat_pc
+           rwe_o
            alua_rdat
            alua_0
            alua_ia
            alub_rdat
-	   alub_imm12i
+           alub_imm12i
            alub_imm20u
            sum_en
-	   lsh_en
-	   cflag_i
-	   invB_en
-	   lts_en
-	   ltu_en
-	   xor_en
-	   rsh_en
-	   and_en
-	   xt3_o
-	   pc_alu
+           lsh_en
+           cflag_i
+           invB_en
+           lts_en
+           ltu_en
+           xor_en
+           rsh_en
+           and_en
+           xt3_o
+           pc_alu
            sx32_en
            ia_pc
-	  ]
+           dadr_alu
+           dcyc_1
+           dstb_1
+           dsiz_fn3
+           rdat_ddat
+          ]
   &wire   [isOpI
            isOpR
            isJalr
            fn3_is_000 fn3_is_001 fn3_is_010 fn3_is_011 fn3_is_100 fn3_is_101 fn3_is_110 fn3_is_111
-	   useAlu useAlu2
+           useAlu useAlu2
            isLuiAuipc
-	  ]
+           isLoad
+          ]
  ]
 
 
@@ -59,78 +65,85 @@
 
  \\ Handle power-on and trap events.
 
- [on [rst]			ft0_o pc_mbvec]
+ [on [rst]                      ft0_o pc_mbvec]
 
  \\ Handle instruction fetch.
 
- [on [~rst ft0 ~iack_i]		iadr_pc isiz_2 ft0_o]
- [on [~rst ft0 iack_i]		iadr_pc isiz_2 pc_pcPlus4 ia_pc ir_idat xt0_o]
+ [on [~rst ft0 ~iack_i]         iadr_pc isiz_2 ft0_o]
+ [on [~rst ft0 iack_i]          iadr_pc isiz_2 pc_pcPlus4 ia_pc ir_idat xt0_o]
 
  \\ Are we jammed?  If we're not executing an instruction,
  \\ AND we're not fetching an instruction, then the CPU will
  \\ deadlock.  Detect this, and trap with an illegal instruction
  \\ exception.
 
- [on [~rst ~ft0 ~xt0 ~xt1 ~xt2 ~xt3]	jammed_o]
+ [on [~rst ~ft0 ~xt0 ~xt1 ~xt2 ~xt3]    jammed_o]
 
 
  \\ INSTRUCTION DECODE AND EXECUTION ---------------------
 
- [on [["ir[14:12]" 3'b000]]	fn3_is_000]
- [on [["ir[14:12]" 3'b001]]	fn3_is_001]
- [on [["ir[14:12]" 3'b010]]	fn3_is_010]
- [on [["ir[14:12]" 3'b011]]	fn3_is_011]
- [on [["ir[14:12]" 3'b100]]	fn3_is_100]
- [on [["ir[14:12]" 3'b101]]	fn3_is_101]
- [on [["ir[14:12]" 3'b110]]	fn3_is_110]
- [on [["ir[14:12]" 3'b111]]	fn3_is_111]
+ [on [["ir[14:12]" 3'b000]]     fn3_is_000]
+ [on [["ir[14:12]" 3'b001]]     fn3_is_001]
+ [on [["ir[14:12]" 3'b010]]     fn3_is_010]
+ [on [["ir[14:12]" 3'b011]]     fn3_is_011]
+ [on [["ir[14:12]" 3'b100]]     fn3_is_100]
+ [on [["ir[14:12]" 3'b101]]     fn3_is_101]
+ [on [["ir[14:12]" 3'b110]]     fn3_is_110]
+ [on [["ir[14:12]" 3'b111]]     fn3_is_111]
 
- [on [["ir[6:4]" "7'b001"] ["ir[2:0]" "3'b011"]]	isOpI]
- [on [["ir[6:4]" "7'b011"] ["ir[2:0]" "3'b011"]]	isOpR]
+ [on [["ir[6:4]" "7'b001"] ["ir[2:0]" "3'b011"]]        isOpI]
+ [on [["ir[6:4]" "7'b011"] ["ir[2:0]" "3'b011"]]        isOpR]
 
- [on [~rst xt0 isOpI]		xt1_o ra_ir1]
- [on [~rst xt1 isOpI]		xt2_o alua_rdat alub_imm12i]
- [on [~rst xt2 isOpI]		ra_ird rdat_alu rwe_o useAlu ft0_o]
+ [on [~rst xt0 isOpI]           xt1_o ra_ir1]
+ [on [~rst xt1 isOpI]           xt2_o alua_rdat alub_imm12i]
+ [on [~rst xt2 isOpI]           ra_ird rdat_alu rwe_o useAlu ft0_o]
 
- [on [useAlu fn3_is_000]	sum_en]
- [on [useAlu fn3_is_001]	lsh_en]
- [on [useAlu fn3_is_010]	cflag_i invB_en lts_en]
- [on [useAlu fn3_is_011]	cflag_i invB_en ltu_en]
- [on [useAlu fn3_is_100]	xor_en]
+ [on [useAlu fn3_is_000]        sum_en]
+ [on [useAlu fn3_is_001]        lsh_en]
+ [on [useAlu fn3_is_010]        cflag_i invB_en lts_en]
+ [on [useAlu fn3_is_011]        cflag_i invB_en ltu_en]
+ [on [useAlu fn3_is_100]        xor_en]
  [on [useAlu fn3_is_101 "~ir[30]"]  rsh_en]
  [on [useAlu fn3_is_101 "ir[30]"]   rsh_en cflag_i]
- [on [useAlu fn3_is_110]	and_en xor_en]
- [on [useAlu fn3_is_111]	and_en]
- [on [useAlu "ir[3]"]		sx32_en]
+ [on [useAlu fn3_is_110]        and_en xor_en]
+ [on [useAlu fn3_is_111]        and_en]
+ [on [useAlu "ir[3]"]           sx32_en]
 
- [on [~rst xt0 isOpR]		xt1_o ra_ir1]
- [on [~rst xt1 isOpR]		xt2_o alua_rdat ra_ir2]
- [on [~rst xt2 isOpR]		xt3_o alub_rdat]
- [on [~rst xt3 isOpR]		ra_ird rdat_alu rwe_o useAlu2 ft0_o]
+ [on [~rst xt0 isOpR]           xt1_o ra_ir1]
+ [on [~rst xt1 isOpR]           xt2_o alua_rdat ra_ir2]
+ [on [~rst xt2 isOpR]           xt3_o alub_rdat]
+ [on [~rst xt3 isOpR]           ra_ird rdat_alu rwe_o useAlu2 ft0_o]
 
- [on [useAlu2 fn3_is_000 "~ir[30]"]	sum_en]
- [on [useAlu2 fn3_is_000 "ir[30]"]	sum_en cflag_i invB_en]
- [on [useAlu2 fn3_is_001]	lsh_en]
- [on [useAlu2 fn3_is_010]	cflag_i invB_en lts_en]
- [on [useAlu2 fn3_is_011]	cflag_i invB_en ltu_en]
- [on [useAlu2 fn3_is_100]	xor_en]
+ [on [useAlu2 fn3_is_000 "~ir[30]"]     sum_en]
+ [on [useAlu2 fn3_is_000 "ir[30]"]      sum_en cflag_i invB_en]
+ [on [useAlu2 fn3_is_001]       lsh_en]
+ [on [useAlu2 fn3_is_010]       cflag_i invB_en lts_en]
+ [on [useAlu2 fn3_is_011]       cflag_i invB_en ltu_en]
+ [on [useAlu2 fn3_is_100]       xor_en]
  [on [useAlu2 fn3_is_101 "~ir[30]"]  rsh_en]
  [on [useAlu2 fn3_is_101 "ir[30]"]   rsh_en cflag_i]
- [on [useAlu2 fn3_is_110]	and_en xor_en]
- [on [useAlu2 fn3_is_111]	and_en]
- [on [useAlu2 "ir[3]"]		sx32_en]
+ [on [useAlu2 fn3_is_110]       and_en xor_en]
+ [on [useAlu2 fn3_is_111]       and_en]
+ [on [useAlu2 "ir[3]"]          sx32_en]
 
  [on [["ir[6:0]" "7'b1100111"]] isJalr]
 
- [on [~rst xt0 isJalr]		xt1_o ra_ird rdat_pc rwe_o]
- [on [~rst xt1 isJalr]		xt2_o ra_ir1]
- [on [~rst xt2 isJalr]		xt3_o alua_rdat alub_imm12i]
- [on [~rst xt3 isJalr]		ft0_o pc_alu sum_en]
+ [on [~rst xt0 isJalr]          xt1_o ra_ird rdat_pc rwe_o]
+ [on [~rst xt1 isJalr]          xt2_o ra_ir1]
+ [on [~rst xt2 isJalr]          xt3_o alua_rdat alub_imm12i]
+ [on [~rst xt3 isJalr]          ft0_o pc_alu sum_en]
 
- [on ["~ir[6]" ["ir[4:0]" "5'b10111"]]	isLuiAuipc]
- [on [~rst xt0 isLuiAuipc]		xt1_o alub_imm20u]
- [on [~rst xt0 isLuiAuipc "ir[5]"]	alua_0]
- [on [~rst xt0 isLuiAuipc "~ir[5]"]	alua_ia]
- [on [~rst xt1 isLuiAuipc]		ra_ird rdat_alu rwe_o sum_en ft0_o]
+ [on ["~ir[6]" ["ir[4:0]" "5'b10111"]]  isLuiAuipc]
+ [on [~rst xt0 isLuiAuipc]              xt1_o alub_imm20u]
+ [on [~rst xt0 isLuiAuipc "ir[5]"]      alua_0]
+ [on [~rst xt0 isLuiAuipc "~ir[5]"]     alua_ia]
+ [on [~rst xt1 isLuiAuipc]              ra_ird rdat_alu rwe_o sum_en ft0_o]
+
+ [on [["ir[6:0]" "7'b0000011"]]           isLoad]
+
+ [on [~rst xt0 isLoad]                  xt1_o ra_ir1]
+ [on [~rst xt1 isLoad]                  xt2_o alua_rdat alub_imm12i]
+ [on [~rst xt2 isLoad ~dack_i]          xt2_o sum_en dadr_alu dcyc_1 dstb_1 dsiz_fn3]
+ [on [~rst xt2 isLoad dack_i]           sum_en dadr_alu dcyc_1 dstb_1 dsiz_fn3  ra_ird rwe_o rdat_ddat  ft0_o]
 ]
 

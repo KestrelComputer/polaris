@@ -13,6 +13,16 @@ module PolarisCPU_tb();
 	wire	[1:0]	isiz_o;
 	wire		jammed_o;
 
+	reg		dack_i;
+	reg	[63:0]	ddat_i;
+	wire	[63:0]	ddat_o;
+	wire	[63:0]	dadr_o;
+	wire	[1:0]	dsiz_o;
+	wire		dsigned_o;
+	wire		dcyc_o;
+	wire		dstb_o;
+	wire		dwe_o;
+
 	task scenario;		// Pointless task helps with searching in text editor.
 	input [15:0] story;
 	begin
@@ -62,6 +72,66 @@ module PolarisCPU_tb();
 	end
 	endtask
 
+	task assert_dadr;
+	input [63:0] expected;
+	begin
+		if(dadr_o !== expected) begin
+		$display("@E %08X DADR_O Expected=%016X Got=%016X", story_o, expected, dadr_o);
+		$stop;
+		end
+	end
+	endtask
+
+	task assert_dsiz;
+	input [1:0] expected;
+	begin
+		if(dsiz_o !== expected) begin
+		$display("@E %08X DSIZ_O Expected=%x Got=%x", story_o, expected, dsiz_o);
+		$stop;
+		end
+	end
+	endtask
+
+	task assert_dcyc;
+	input expected;
+	begin
+		if(dcyc_o !== expected) begin
+		$display("@E %08X DCYC_O Expected=%x Got=%x", story_o, expected, dcyc_o);
+		$stop;
+		end
+	end
+	endtask
+
+	task assert_dstb;
+	input expected;
+	begin
+		if(dstb_o !== expected) begin
+		$display("@E %08X DSTB_O Expected=%x Got=%x", story_o, expected, dstb_o);
+		$stop;
+		end
+	end
+	endtask
+
+	task assert_dwe;
+	input expected;
+	begin
+		if(dwe_o !== expected) begin
+		$display("@E %08X DWE_O Expected=%x Got=%x", story_o, expected, dwe_o);
+		$stop;
+		end
+	end
+	endtask
+
+	task assert_dsigned;
+	input expected;
+	begin
+		if(dsigned_o !== expected) begin
+		$display("@E %08X DSIGNED_O Expected=%x Got=%x", story_o, expected, dsigned_o);
+		$stop;
+		end
+	end
+	endtask
+
 	always begin
 		#`PHASE clk_i <= ~clk_i;
 	end
@@ -78,6 +148,18 @@ module PolarisCPU_tb();
 		.iadr_o(iadr_o),
 		.isiz_o(isiz_o),
 
+		// D MASTER
+
+		.dack_i(dack_i),
+		.ddat_i(ddat_i),
+		.ddat_o(ddat_o),
+		.dadr_o(dadr_o),
+		.dwe_o(dwe_o),
+		.dcyc_o(dcyc_o),
+		.dstb_o(dstb_o),
+		.dsiz_o(dsiz_o),
+		.dsigned_o(dsigned_o),
+
 		// SYSCON
 
 		.clk_i(clk_i),
@@ -87,11 +169,6 @@ module PolarisCPU_tb();
 	// Exercise the CPU's behavior on cold reset.
 	task test_bootstrap;
 	begin
-		clk_i <= 0;
-		reset_i <= 0;
-		iack_i <= 0;
-		idat_i <= 32'h0000_0000;	// Guaranteed illegal instruction
-
 		scenario(0);
 
 //		$display("@D -TIME- CLK RST ISIZ IADR     IACK JAM ");
@@ -349,7 +426,6 @@ module PolarisCPU_tb();
 	end
 	endtask
 
-	// Exercise the CPU's ability to execute OP-R instructions.
 	task test_lui_auipc;
 	begin
 		scenario(3);
@@ -406,11 +482,95 @@ module PolarisCPU_tb();
 	end
 	endtask
 
+	task test_ld_st;
+	begin
+		scenario(4);
+
+		$display("@D -TIME- CLK . DWE RA RDATA........... RWE ");
+		$monitor("@D %6d  %b  .  %b   %d %016X %d   ", $time, clk_i, cpu.dwe_o, cpu.ra_mux, cpu.rdat_i, cpu.rwe_o);
+
+		reset_i <= 1;
+		tick(1);
+		assert_isiz(2'b00);
+		assert_dsiz(2'b00);
+		assert_dsigned(0);
+		assert_dwe(0);
+		reset_i <= 0;
+		tick(2);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
+		assert_isiz(2'b10);
+		assert_jammed(0);
+		iack_i <= 1;
+
+
+		// LUI X2, $DEADBEEF
+		idat_i <= 32'b1101_1110_1010_1101_1011_00010_0110111;
+		tick(10);
+		tick(11);
+		tick(12);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF04);
+
+		// LHU X1,$123(X2)
+		idat_i <= 32'b0001_0010_0011_00010_101_00001_0000011;
+		tick(20);
+		tick(21);
+		tick(22);
+		assert_dcyc(1);
+		assert_dstb(1);
+		assert_dsiz(2'b01);
+		assert_dsigned(0);
+		assert_dwe(0);
+		assert_dadr(64'hFFFF_FFFF_DEAD_B123);
+
+		tick(23);
+		assert_dcyc(1);
+		assert_dstb(1);
+		assert_dsiz(2'b01);
+		assert_dsigned(0);
+		assert_dwe(0);
+
+		tick(24);
+		assert_dcyc(1);
+		assert_dstb(1);
+		assert_dsiz(2'b01);
+		assert_dsigned(0);
+		assert_dwe(0);
+
+		ddat_i <= 64'h0000_0000_0000_FFFC;
+		dack_i <= 1;
+		tick(25);
+		assert_dcyc(0);
+		assert_dstb(0);
+		assert_isiz(2'b10);
+
+		// LB X1,4(X1)
+		idat_i <= 32'b0000_0000_0100_00001_000_00001_0000011;
+		tick(30);
+		tick(31);
+		tick(32);
+		assert_dcyc(1);
+		assert_dstb(1);
+		assert_dsiz(2'b00);
+		assert_dsigned(1);
+		assert_dwe(0);
+		assert_dadr(64'h0000_0000_0001_0000);
+	end
+	endtask
+
 	initial begin
+		clk_i <= 0;
+		reset_i <= 0;
+		iack_i <= 0;
+		dack_i <= 0;
+		idat_i <= 32'h0000_0000;	// Guaranteed illegal instruction
+		ddat_i <= 64'h0000_0000_0000_0000;
+
 		test_bootstrap();
 		test_op_i();
 		test_op_r();
 		test_lui_auipc();
+		test_ld_st();
 		$display("@I Done."); $stop;
 	end
 endmodule
