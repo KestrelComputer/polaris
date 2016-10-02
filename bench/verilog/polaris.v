@@ -181,8 +181,8 @@ module PolarisCPU_tb();
 	begin
 		scenario(0);
 
-//		$display("@D -TIME- CLK RST ISIZ IADR     IACK JAM ");
-//		$monitor("@D %6d  %b   %b   %2b  %08X   %b   %b ", $time, clk_i, reset_i, isiz_o, iadr_o[31:0], iack_i, jammed_o);
+//		$display("@D -TIME- CLK RST ISIZ IADR     IR        Jammed Fence");
+//		$monitor("@D %6d  %b   %b   %2b  %016X   %08X %b", $time, clk_i, reset_i, isiz_o, iadr_o, cpu.ir, jammed_o, cpu.fence_o);
 
 		reset_i <= 1;
 		tick(1);
@@ -890,6 +890,49 @@ module PolarisCPU_tb();
 	end
 	endtask
 
+	task test_fence;
+	begin
+		scenario(7);
+
+//		$display("@D -TIME- CLK . IADR     IR       Fence Jammed");
+//		$monitor("@D %6d  %b  .  %016X %08X %b %b", $time, clk_i, iadr_o, cpu.ir, cpu.fence_o, jammed_o);
+
+		reset_i <= 1;
+		tick(1);
+		assert_isiz(2'b00);
+		assert_dsiz(2'b00);
+		assert_dsigned(0);
+		assert_dwe(0);
+
+		reset_i <= 0;
+		tick(2);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
+		assert_isiz(2'b10);
+		assert_jammed(0);
+		iack_i <= 1;
+
+		//	FENCE	10,5
+		idat_i <= 32'b0000_1010_0101_00000_000_00000_0001111;
+		tick(10);
+		tick(11);
+		tick(12);
+		tick(13);
+		tick(14);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF04);
+
+		//	FENCE.I
+		idat_i <= 32'b0000_0000_0000_00000_001_00000_0001111;
+		tick(20);
+		tick(21);
+		tick(22);
+		tick(23);
+		tick(24);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF08);
+	end
+	endtask
+
 	initial begin
 		clk_i <= 0;
 		reset_i <= 0;
@@ -905,6 +948,7 @@ module PolarisCPU_tb();
 		test_ld_st();
 		test_jal();
 		test_b();
+		test_fence();
 		$display("@I Done."); $stop;
 	end
 endmodule

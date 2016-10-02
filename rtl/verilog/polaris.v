@@ -6,6 +6,7 @@ module PolarisCPU(
 	// MISC DIAGNOSTICS
 
 	output			jammed_o,
+	output			fence_o,
 
 	// I MASTER
 
@@ -209,6 +210,7 @@ module PolarisCPU(
 		.xt4_o(xt4_o),
 		.xt4(xt4),
 		.ccr(ccr),
+		.fence_o(fence_o),
 		.rst(rst)
 	);
 

@@ -57,6 +57,7 @@
            ccr_alu
            alub_imm12sb
            xt4_o
+           fence_o
           ]
   &wire   [isOpI
            isOpR
@@ -68,6 +69,7 @@
            isStore
            isJal
            isBr
+           isFence
           ]
  ]
 
@@ -183,5 +185,13 @@
  [on [isBr xt4 fn3_is_101 "ccr[5]"]     pc_alu]
  [on [isBr xt4 fn3_is_110 "ccr[6]"]     pc_alu]
  [on [isBr xt4 fn3_is_111 "ccr[7]"]     pc_alu]
+
+ [on [["ir[31:28]" "4'b0000"] ["ir[19:0]" "20'h0000F"]] isFence]        \\ FENCE
+ [on [["ir[31:0]" "32'h0000100F"]]                      isFence]        \\ FENCE.I
+
+ [on [~rst isFence xt0]                 xt1_o fence_o]
+ [on [~rst isFence xt1]                 xt2_o fence_o]
+ [on [~rst isFence xt2]                 xt3_o fence_o]
+ [on [~rst isFence xt3]                 ft0_o fence_o]
 ]
 
