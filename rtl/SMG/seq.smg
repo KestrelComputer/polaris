@@ -9,6 +9,7 @@
            xt3
            xt4
            [ccr "[7:0]"]
+           trap
           ]
   &output [ft0_o
            pc_mbvec
@@ -17,7 +18,6 @@
            pc_pcPlus4
            ir_idat
            xt0_o
-           jammed_o
            xt1_o
            xt2_o
            ra_ir1
@@ -58,6 +58,14 @@
            alub_imm12sb
            xt4_o
            fence_o
+           trap_o
+           mepc_ia
+           pc_mtvec
+           mpie_mie
+           mie_0
+           mcause_11
+           mcause_3
+           mcause_2
           ]
   &wire   [isOpI
            isOpR
@@ -70,6 +78,8 @@
            isJal
            isBr
            isFence
+           isECall
+           isEBreak
           ]
  ]
 
@@ -83,15 +93,21 @@
 
  \\ Handle instruction fetch.
 
- [on [~rst ft0 ~iack_i]         iadr_pc isiz_2 ft0_o]
- [on [~rst ft0 iack_i]          iadr_pc isiz_2 pc_pcPlus4 ia_pc ir_idat xt0_o]
+ [on [~rst ft0 ~trap_o ~iack_i]         iadr_pc isiz_2 ft0_o]
+ [on [~rst ft0 ~trap_o iack_i]          iadr_pc isiz_2 pc_pcPlus4 ia_pc ir_idat xt0_o]
+
+ \\ Handle a trap.  We save the IA and reload it with the current value of MTVEC,
+ \\ preserve the current interrupt enable flag, and clear it.  Then we resume
+ \\ instruction execution.
+
+ [on [~rst trap]                        mepc_ia pc_mtvec  mpie_mie mie_0  ft0_o]
 
  \\ Are we jammed?  If we're not executing an instruction,
  \\ AND we're not fetching an instruction, then the CPU will
  \\ deadlock.  Detect this, and trap with an illegal instruction
  \\ exception.
 
- [on [~rst ~ft0 ~xt0 ~xt1 ~xt2 ~xt3]    jammed_o]
+ [on [~rst ~trap ~ft0 ~xt0 ~xt1 ~xt2 ~xt3 ~xt4]    trap_o mcause_2]
 
 
  \\ INSTRUCTION DECODE AND EXECUTION ---------------------
@@ -193,5 +209,11 @@
  [on [~rst isFence xt1]                 xt2_o fence_o]
  [on [~rst isFence xt2]                 xt3_o fence_o]
  [on [~rst isFence xt3]                 ft0_o fence_o]
+
+ [on [["ir[31:0]" "32'b0000_0000_0000_00000_000_00000_1110011"]]        isECall]
+ [on [["ir[31:0]" "32'b0000_0000_0001_00000_000_00000_1110011"]]        isEBreak]
+
+ [on [~rst isECall xt0]                 trap_o mcause_11]
+ [on [~rst isEBreak xt0]                trap_o mcause_3]
 ]
 

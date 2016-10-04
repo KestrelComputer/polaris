@@ -11,7 +11,8 @@ module PolarisCPU_tb();
 	reg	[31:0]	idat_i;
 	wire	[63:0]	iadr_o;
 	wire	[1:0]	isiz_o;
-	wire		jammed_o;
+	wire		trap_o;
+	wire	[3:0]	cause_o;
 
 	reg		dack_i;
 	reg	[63:0]	ddat_i;
@@ -62,11 +63,21 @@ module PolarisCPU_tb();
 	end
 	endtask
 
-	task assert_jammed;
+	task assert_trap;
 	input expected;
 	begin
-		if(jammed_o !== expected) begin
-		$display("@E %08X JAMMED_O Expected=%b Got=%b", story_o, expected, jammed_o);
+		if(trap_o !== expected) begin
+		$display("@E %08X TRAP_O Expected=%b Got=%b", story_o, expected, trap_o);
+		$stop;
+		end
+	end
+	endtask
+
+	task assert_cause;
+	input [3:0] expected;
+	begin
+		if(cause_o !== expected) begin
+		$display("@E %08X CAUSE_O Expected=%d Got=%d", story_o, expected, cause_o);
 		$stop;
 		end
 	end
@@ -149,7 +160,8 @@ module PolarisCPU_tb();
 	PolarisCPU cpu(
 		// Miscellaneous Diagnostics
 
-		.jammed_o(jammed_o),
+		.trap_o(trap_o),
+		.cause_o(cause_o),
 
 		// I MASTER
 
@@ -170,6 +182,10 @@ module PolarisCPU_tb();
 		.dsiz_o(dsiz_o),
 		.dsigned_o(dsigned_o),
 
+		// CONFIG
+
+		.mtvec_i(64'hFFFF_FFFF_FFFF_FE00),
+
 		// SYSCON
 
 		.clk_i(clk_i),
@@ -181,9 +197,6 @@ module PolarisCPU_tb();
 	begin
 		scenario(0);
 
-//		$display("@D -TIME- CLK RST ISIZ IADR     IR        Jammed Fence");
-//		$monitor("@D %6d  %b   %b   %2b  %016X   %08X %b", $time, clk_i, reset_i, isiz_o, iadr_o, cpu.ir, jammed_o, cpu.fence_o);
-
 		reset_i <= 1;
 		tick(1);
 		assert_isiz(2'b00);
@@ -193,25 +206,26 @@ module PolarisCPU_tb();
 		tick(3);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
 		assert_isiz(2'b10);
-		assert_jammed(0);
 		iack_i <= 0;
 		tick(4);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
 		assert_isiz(2'b10);
-		assert_jammed(0);
 		iack_i <= 0;
 		tick(5);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
 		assert_isiz(2'b10);
-		assert_jammed(0);
 		iack_i <= 1;
 		tick(6);
 		assert_isiz(2'b00);
-		assert_jammed(0);
 		tick(7);
 		assert_isiz(2'b00);
-		assert_jammed(1);
-
+		assert_trap(1);		// illegal instruction trap!
+		assert_cause(2);
+		tick(8);		// internal cycle setting registers...
+		assert_trap(0);
+		tick(9);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FE00);
 	end
 	endtask
 
@@ -220,9 +234,6 @@ module PolarisCPU_tb();
 	begin
 		scenario(1);
 
-//		$display("@D -TIME- CLK ... ISIZ IADR     JAM ALUOUT  ");
-//		$monitor("@D %6d  %b  ...  %2b  %08X  %b %016X : %08X : %d %d %016X %016X : %016X %016X", $time, clk_i, isiz_o, iadr_o[31:0], jammed_o, cpu.aluResult, cpu.ir, cpu.rwe_o, cpu.ra_mux, cpu.rdat_i, cpu.rdat_o, cpu.alua, cpu.alub);
-
 		reset_i <= 1;
 		tick(1);
 		assert_isiz(2'b00);
@@ -230,22 +241,22 @@ module PolarisCPU_tb();
 		tick(2);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
 		assert_isiz(2'b10);
-		assert_jammed(0);
+		assert_trap(0);
 		iack_i <= 1;
 		idat_i <= 32'h0000_0013;	// ADDI X0, X0, 0 (aka NOP)
 		tick(3);
 		assert_isiz(2'b00);
-		assert_jammed(0);
+		assert_trap(0);
 		tick(4);
 		assert_isiz(2'b00);
-		assert_jammed(0);
+		assert_trap(0);
 		tick(5);
 		assert_isiz(2'b00);
-		assert_jammed(0);
+		assert_trap(0);
 		tick(6);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF04);
 		assert_isiz(2'b10);
-		assert_jammed(0);
+		assert_trap(0);
 
 		idat_i <= 32'h1240_0113;	// ADDI X2, X0, $124
 		tick(7);
@@ -335,9 +346,6 @@ module PolarisCPU_tb();
 	begin
 		scenario(2);
 
-//		$display("@D -TIME- CLK ... ISIZ IADR     JAM ALUOUT  ");
-//		$monitor("@D %6d  %b  ...  %2b  %08X  %b %016X : %08X : %d %d %016X %016X : %016X %016X", $time, clk_i, isiz_o, iadr_o[31:0], jammed_o, cpu.aluResult, cpu.ir, cpu.rwe_o, cpu.ra_mux, cpu.rdat_i, cpu.rdat_o, cpu.alua, cpu.alub);
-
 		reset_i <= 1;
 		tick(1);
 		assert_isiz(2'b00);
@@ -345,7 +353,7 @@ module PolarisCPU_tb();
 		tick(2);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
 		assert_isiz(2'b10);
-		assert_jammed(0);
+		assert_trap(0);
 		iack_i <= 1;
 
 		// We don't yet have loads implemented as I write this code,
@@ -440,9 +448,6 @@ module PolarisCPU_tb();
 	begin
 		scenario(3);
 
-//		$display("@D -TIME- CLK ... ISIZ IADR     JAM ALUOUT  ");
-//		$monitor("@D %6d  %b  ...  %2b  %08X  %b %016X : %08X : %d %d %016X %016X : %016X %016X", $time, clk_i, isiz_o, iadr_o[31:0], jammed_o, cpu.aluResult, cpu.ir, cpu.rwe_o, cpu.ra_mux, cpu.rdat_i, cpu.rdat_o, cpu.alua, cpu.alub);
-
 		reset_i <= 1;
 		tick(1);
 		assert_isiz(2'b00);
@@ -450,7 +455,7 @@ module PolarisCPU_tb();
 		tick(2);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
 		assert_isiz(2'b10);
-		assert_jammed(0);
+		assert_trap(0);
 		iack_i <= 1;
 
 
@@ -496,9 +501,6 @@ module PolarisCPU_tb();
 	begin
 		scenario(4);
 
-//		$display("@D -TIME- CLK . FT0 ALURESULT........ ALUB............ IMM12S");
-//		$monitor("@D %6d  %b  .  %b  %016X %016X %06X %b %08X", $time, clk_i, cpu.ft0, cpu.aluXResult, cpu.alub, cpu.imm12s, cpu.alub_imm12s, cpu.ir);
-
 		reset_i <= 1;
 		tick(1);
 		assert_isiz(2'b00);
@@ -509,7 +511,7 @@ module PolarisCPU_tb();
 		tick(2);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
 		assert_isiz(2'b10);
-		assert_jammed(0);
+		assert_trap(0);
 		iack_i <= 1;
 
 
@@ -606,9 +608,6 @@ module PolarisCPU_tb();
 	begin
 		scenario(5);
 
-//		$display("@D -TIME- CLK . IADR");
-//		$monitor("@D %6d  %b  .  %016X", $time, clk_i, iadr_o);
-
 		reset_i <= 1;
 		tick(1);
 		assert_isiz(2'b00);
@@ -619,7 +618,7 @@ module PolarisCPU_tb();
 		tick(2);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
 		assert_isiz(2'b10);
-		assert_jammed(0);
+		assert_trap(0);
 		iack_i <= 1;
 
 
@@ -650,9 +649,6 @@ module PolarisCPU_tb();
 	begin
 		scenario(6);
 
-//		$display("@D -TIME- CLK . IADR");
-//		$monitor("@D %6d  %b  .  %016X", $time, clk_i, iadr_o);
-
 		reset_i <= 1;
 		tick(1);
 		assert_isiz(2'b00);
@@ -663,7 +659,7 @@ module PolarisCPU_tb();
 		tick(2);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
 		assert_isiz(2'b10);
-		assert_jammed(0);
+		assert_trap(0);
 		iack_i <= 1;
 
 		//	addi	x1, x0, 0
@@ -894,9 +890,6 @@ module PolarisCPU_tb();
 	begin
 		scenario(7);
 
-//		$display("@D -TIME- CLK . IADR     IR       Fence Jammed");
-//		$monitor("@D %6d  %b  .  %016X %08X %b %b", $time, clk_i, iadr_o, cpu.ir, cpu.fence_o, jammed_o);
-
 		reset_i <= 1;
 		tick(1);
 		assert_isiz(2'b00);
@@ -908,7 +901,7 @@ module PolarisCPU_tb();
 		tick(2);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
 		assert_isiz(2'b10);
-		assert_jammed(0);
+		assert_trap(0);
 		iack_i <= 1;
 
 		//	FENCE	10,5
@@ -933,6 +926,48 @@ module PolarisCPU_tb();
 	end
 	endtask
 
+	task test_e;
+	begin
+		scenario(8);
+
+		reset_i <= 1;
+		tick(1);
+		assert_isiz(2'b00);
+		assert_dsiz(2'b00);
+		assert_dsigned(0);
+		assert_dwe(0);
+
+		reset_i <= 0;
+		tick(2);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
+		assert_isiz(2'b10);
+		assert_trap(0);
+		iack_i <= 1;
+
+		//	ECALL
+		idat_i <= 32'b000000000000_00000_000_00000_1110011;
+		tick(10);		// Recognize the trap.
+		assert_trap(1);
+		assert_cause(11);
+		tick(11);		// Internal cycle to set registers.
+		assert_trap(0);	
+		tick(12);		// Fetch first handler instruction.
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FE00);
+
+		//	EBREAK
+		idat_i <= 32'b000000000001_00000_000_00000_1110011;
+		tick(20);
+		assert_trap(1);
+		assert_cause(3);
+		tick(21);
+		assert_trap(0);
+		tick(22);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FE00);
+	end
+	endtask
+
 	initial begin
 		clk_i <= 0;
 		reset_i <= 0;
@@ -949,6 +984,7 @@ module PolarisCPU_tb();
 		test_jal();
 		test_b();
 		test_fence();
+		test_e();
 		$display("@I Done."); $stop;
 	end
 endmodule
