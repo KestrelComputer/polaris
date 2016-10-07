@@ -25,6 +25,7 @@ module PolarisCPU_tb();
 	wire		dwe_o;
 
 	wire	[63:0]	mepc_o;
+	wire		mpie_o, mie_o;
 
 	task scenario;		// Pointless task helps with searching in text editor.
 	input [15:0] story;
@@ -80,6 +81,26 @@ module PolarisCPU_tb();
 	begin
 		if(trap_o !== expected) begin
 		$display("@E %08X TRAP_O Expected=%b Got=%b", story_o, expected, trap_o);
+		$stop;
+		end
+	end
+	endtask
+
+	task assert_mpie;
+	input expected;
+	begin
+		if(mpie_o !== expected) begin
+		$display("@E %08X MPIE_O Expected=%b Got=%b", story_o, expected, mpie_o);
+		$stop;
+		end
+	end
+	endtask
+
+	task assert_mie;
+	input expected;
+	begin
+		if(mie_o !== expected) begin
+		$display("@E %08X MIE_O Expected=%b Got=%b", story_o, expected, mie_o);
 		$stop;
 		end
 	end
@@ -175,6 +196,8 @@ module PolarisCPU_tb();
 		.trap_o(trap_o),
 		.cause_o(cause_o),
 		.mepc_o(mepc_o),
+		.mie_o(mie_o),
+		.mpie_o(mpie_o),
 
 		// I MASTER
 
@@ -955,6 +978,8 @@ module PolarisCPU_tb();
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
 		assert_isiz(2'b10);
 		assert_trap(0);
+		assert_mie(0);
+		assert_mpie(1);
 		iack_i <= 1;
 
 		//	ECALL
@@ -968,6 +993,8 @@ module PolarisCPU_tb();
 		assert_isiz(2'b10);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FE00);
 		assert_mepc(64'hFFFF_FFFF_FFFF_FF00);
+		assert_mie(0);
+		assert_mpie(0);
 
 		//	MRET
 		idat_i <= 32'b0011_0000_0010_00000_000_00000_1110011;
@@ -975,6 +1002,8 @@ module PolarisCPU_tb();
 		tick(31);
 		assert_isiz(2'b10);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
+		assert_mie(0);
+		assert_mpie(1);
 
 		//	EBREAK
 		idat_i <= 32'b000000000001_00000_000_00000_1110011;

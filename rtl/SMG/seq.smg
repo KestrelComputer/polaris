@@ -93,7 +93,7 @@
 
  \\ Handle power-on and trap events.
 
- [on [rst]                      ft0_o pc_mbvec]
+ [on [rst]                      ft0_o pc_mbvec mie_0 mpie_1]
 
  \\ Handle instruction fetch.
 

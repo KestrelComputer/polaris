@@ -9,6 +9,8 @@ module PolarisCPU(
 	output			trap_o,
 	output	[3:0]		cause_o,
 	output	[63:0]		mepc_o,
+	output			mpie_o,
+	output			mie_o,
 
 	// I MASTER
 
@@ -102,6 +104,23 @@ module PolarisCPU(
 	wire	[63:0]	mepc_mux;
 	wire		mepc_ia;
 	wire		pc_mepc;
+	reg		mie, mpie;
+	wire		mie_mux, mpie_mux;
+	wire		mie_0, mie_mpie;
+	wire		mpie_mie, mpie_1;
+
+	assign mie_o = mie;
+	assign mpie_o = mpie;
+	wire mie_mie = ~|{mie_0, mie_mpie};
+	assign mie_mux =
+			(mie_0 ? 0 : 0) |
+			(mie_mpie ? mpie : 0) |
+			(mie_mie ? mie : 0);
+	wire mpie_mpie = ~|{mpie_mie, mpie_1};
+	assign mpie_mux =
+			(mpie_mie ? mie : 0) |
+			(mpie_1 ? 1 : 0) |
+			(mpie_mpie ? mpie : 0);
 
 	assign mepc_o = mepc;
 	assign mepc_mux = mepc_ia ? ia : mepc;
@@ -178,6 +197,8 @@ module PolarisCPU(
 		ccr <= ccr_mux;
 		trap <= trap_o;
 		mepc <= mepc_mux;
+		mie <= mie_mux;
+		mpie <= mpie_mux;
 	end
 
 	Sequencer s(
@@ -244,6 +265,10 @@ module PolarisCPU(
 		.pc_mtvec(pc_mtvec),
 		.mepc_ia(mepc_ia),
 		.pc_mepc(pc_mepc),
+		.mpie_mie(mpie_mie),
+		.mpie_1(mpie_1),
+		.mie_mpie(mie_mpie),
+		.mie_0(mie_0),
 		.rst(rst)
 	);
 
