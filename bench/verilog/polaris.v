@@ -24,6 +24,8 @@ module PolarisCPU_tb();
 	wire		dstb_o;
 	wire		dwe_o;
 
+	wire	[63:0]	mepc_o;
+
 	task scenario;		// Pointless task helps with searching in text editor.
 	input [15:0] story;
 	begin
@@ -48,6 +50,16 @@ module PolarisCPU_tb();
 	begin
 		if(iadr_o !== expected) begin
 		$display("@E %08X IADR_O Expected=%016X Got=%016X", story_o, expected, iadr_o);
+		$stop;
+		end
+	end
+	endtask
+
+	task assert_mepc;
+	input [63:0] expected;
+	begin
+		if(mepc_o !== expected) begin
+		$display("@E %08X MEPC_O Expected=%016X Got=%016X", story_o, expected, mepc_o);
 		$stop;
 		end
 	end
@@ -162,6 +174,7 @@ module PolarisCPU_tb();
 
 		.trap_o(trap_o),
 		.cause_o(cause_o),
+		.mepc_o(mepc_o),
 
 		// I MASTER
 
@@ -954,6 +967,14 @@ module PolarisCPU_tb();
 		tick(12);		// Fetch first handler instruction.
 		assert_isiz(2'b10);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FE00);
+		assert_mepc(64'hFFFF_FFFF_FFFF_FF00);
+
+		//	MRET
+		idat_i <= 32'b0011_0000_0010_00000_000_00000_1110011;
+		tick(30);
+		tick(31);
+		assert_isiz(2'b10);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
 
 		//	EBREAK
 		idat_i <= 32'b000000000001_00000_000_00000_1110011;

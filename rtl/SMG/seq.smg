@@ -66,6 +66,9 @@
            mcause_11
            mcause_3
            mcause_2
+           pc_mepc
+           mie_mpie
+           mpie_1
           ]
   &wire   [isOpI
            isOpR
@@ -80,6 +83,7 @@
            isFence
            isECall
            isEBreak
+           isMRet
           ]
  ]
 
@@ -215,5 +219,9 @@
 
  [on [~rst isECall xt0]                 trap_o mcause_11]
  [on [~rst isEBreak xt0]                trap_o mcause_3]
+
+ [on [["ir[31:0]" "32'b0011_0000_0010_00000_000_00000_1110011"]]        isMRet]
+
+ [on [~rst isMRet xt0]                  ft0_o pc_mepc mie_mpie mpie_1]
 ]
 

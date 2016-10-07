@@ -8,6 +8,7 @@ module PolarisCPU(
 	output			fence_o,
 	output			trap_o,
 	output	[3:0]		cause_o,
+	output	[63:0]		mepc_o,
 
 	// I MASTER
 
@@ -97,6 +98,13 @@ module PolarisCPU(
 	wire		trap_o;
 	wire		mcause_2, mcause_3, mcause_11;
 	wire		pc_mtvec;
+	reg	[63:0]	mepc;
+	wire	[63:0]	mepc_mux;
+	wire		mepc_ia;
+	wire		pc_mepc;
+
+	assign mepc_o = mepc;
+	assign mepc_mux = mepc_ia ? ia : mepc;
 
 	assign cause_o =
 			mcause_2 ? 4'd2 :
@@ -139,11 +147,12 @@ module PolarisCPU(
 			(ra_ir2 ? ir[24:20] : 0) |
 			(ra_ird ? ir[11:7] : 0);	// Defaults to 0
 	assign isiz_o = isiz_2 ? 2'b10 : 2'b00;
-	wire pc_pc    = ~|{pc_mbvec,pc_pcPlus4,pc_alu,pc_mtvec};
+	wire pc_pc    = ~|{pc_mbvec,pc_pcPlus4,pc_alu,pc_mtvec,pc_mepc};
 	assign pc_mux = (pc_mbvec ? 64'hFFFF_FFFF_FFFF_FF00 : 64'h0) |
 			(pc_pcPlus4 ? pc + 4 : 64'h0) |
 			(pc_alu ? aluXResult : 64'h0) |
 			(pc_mtvec ? mtvec_i : 64'h0) |
+			(pc_mepc ? mepc : 64'h0) |
 			(pc_pc ? pc : 64'h0);	// base case
 	wire ia_ia    = ~ia_pc;
         assign ia_mux = (ia_pc ? pc : 0) |
@@ -168,6 +177,7 @@ module PolarisCPU(
 		alub <= alub_mux;
 		ccr <= ccr_mux;
 		trap <= trap_o;
+		mepc <= mepc_mux;
 	end
 
 	Sequencer s(
@@ -232,6 +242,8 @@ module PolarisCPU(
 		.mcause_3(mcause_3),
 		.mcause_11(mcause_11),
 		.pc_mtvec(pc_mtvec),
+		.mepc_ia(mepc_ia),
+		.pc_mepc(pc_mepc),
 		.rst(rst)
 	);
 
