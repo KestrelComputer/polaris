@@ -10,7 +10,7 @@ module PolarisCPU_tb();
 	reg		iack_i;
 	reg	[31:0]	idat_i;
 	wire	[63:0]	iadr_o;
-	wire	[1:0]	isiz_o;
+	wire		istb_o;
 	wire		trap_o;
 	wire	[3:0]	cause_o;
 
@@ -92,11 +92,11 @@ module PolarisCPU_tb();
 	end
 	endtask
 
-	task assert_isiz;
-	input [1:0] expected;
+	task assert_istb;
+	input expected;
 	begin
-		if(isiz_o !== expected) begin
-		$display("@E %08X ISIZ_O Expected=%x Got=%x", story_o, expected, isiz_o);
+		if(istb_o !== expected) begin
+		$display("@E %08X ISTB_O Expected=%x Got=%x", story_o, expected, istb_o);
 		$stop;
 		end
 	end
@@ -250,7 +250,7 @@ module PolarisCPU_tb();
 		.iack_i(iack_i),
 		.idat_i(idat_i),
 		.iadr_o(iadr_o),
-		.isiz_o(isiz_o),
+		.istb_o(istb_o),
 
 		// D MASTER
 
@@ -286,32 +286,32 @@ module PolarisCPU_tb();
 
 		reset_i <= 1;
 		tick(1);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		tick(2);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		reset_i <= 0;
 		tick(3);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		iack_i <= 0;
 		tick(4);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		iack_i <= 0;
 		tick(5);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		iack_i <= 1;
 		tick(6);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		tick(7);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		assert_trap(1);		// illegal instruction trap!
 		assert_cause(2);
 		tick(8);		// internal cycle setting registers...
 		assert_trap(0);
 		tick(9);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FE00);
 	end
 	endtask
@@ -323,58 +323,58 @@ module PolarisCPU_tb();
 
 		reset_i <= 1;
 		tick(1);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		reset_i <= 0;
 		tick(2);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_trap(0);
 		iack_i <= 1;
 		idat_i <= 32'h0000_0013;	// ADDI X0, X0, 0 (aka NOP)
 		tick(3);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		assert_trap(0);
 		tick(4);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		assert_trap(0);
 		tick(5);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		assert_trap(0);
 		tick(6);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF04);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_trap(0);
 
 		idat_i <= 32'h1240_0113;	// ADDI X2, X0, $124
 		tick(7);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		tick(8);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		tick(9);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		tick(10);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		idat_i <= 32'h0001_0067;	// JALR X0, 0(X2)
 		tick(11);
 		tick(12);
 		tick(13);
 		tick(14);
 		tick(15);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'h0000_0000_0000_0124);
 		idat_i <= 32'h1241_0113;	// @0124 ADDI X2, X2, $124
 		tick(16);
 		tick(17);
 		tick(18);
 		tick(19);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		idat_i <= 32'h0001_00E7;	// @0128 JALR X1, 0(X2)
 		tick(20);			// X1 = $12C
 		tick(21);
 		tick(22);
 		tick(23);
 		tick(24);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'h0000_0000_0000_0248);
 		idat_i <= 32'hFFC0_8067;	// @0248 JALR X0, -4(X1)
 		tick(25);
@@ -383,21 +383,21 @@ module PolarisCPU_tb();
 		tick(28);
 		tick(29);
 		assert_iadr(64'h0000_0000_0000_0128);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		idat_i <= 32'b000011111111_00010_111_00010_0010011;
 		tick(30);			// X2 = $248
 		tick(31);			// ANDI X2, X2, 255
 		tick(32);
 		tick(33);
 		assert_iadr(64'h0000_0000_0000_012C);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		idat_i <= 32'b000000010000_00010_001_00010_0010011;
 		tick(35);			// SLLI X2, X2, 16
 		tick(36);
 		tick(37);
 		tick(38);
 		assert_iadr(64'h0000_0000_0000_0130);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		idat_i <= 32'b000000000000_00010_000_00000_1100111;
 		tick(40);			// JALR X0, 0(X2)
 		tick(41);
@@ -405,7 +405,7 @@ module PolarisCPU_tb();
 		tick(43);
 		tick(44);
 		assert_iadr(64'h0000_0000_0048_0000);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		// OP-IMM-32
 		idat_i <= 32'b000000000001_00000_000_00011_0010011;
 		tick(50);			// ADDI X3, X0, 1
@@ -423,7 +423,7 @@ module PolarisCPU_tb();
 		tick(62);
 		tick(63);
 		tick(64);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_8000_0000);
 	end
 	endtask
@@ -435,11 +435,11 @@ module PolarisCPU_tb();
 
 		reset_i <= 1;
 		tick(1);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		reset_i <= 0;
 		tick(2);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_trap(0);
 		iack_i <= 1;
 
@@ -477,7 +477,7 @@ module PolarisCPU_tb();
 		tick(22);
 		tick(23);
 		tick(24);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF14);
 
 		// SLLI X3, X3, 8
@@ -526,7 +526,7 @@ module PolarisCPU_tb();
 		tick(92);
 		tick(93);
 		tick(94);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_AAAA_5555_FFFF);
 	end
 	endtask
@@ -537,11 +537,11 @@ module PolarisCPU_tb();
 
 		reset_i <= 1;
 		tick(1);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		reset_i <= 0;
 		tick(2);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_trap(0);
 		iack_i <= 1;
 
@@ -551,7 +551,7 @@ module PolarisCPU_tb();
 		tick(10);
 		tick(11);
 		tick(12);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF04);
 
 		// JALR X0, 0(X2)
@@ -561,7 +561,7 @@ module PolarisCPU_tb();
 		tick(22);
 		tick(23);
 		tick(24);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_DEAD_B000);
 
 		// AUIPC X5, *+$524000
@@ -569,7 +569,7 @@ module PolarisCPU_tb();
 		tick(30);
 		tick(31);
 		tick(32);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_DEAD_B004);
 
 		// JALR X0, 0(X5)
@@ -579,7 +579,7 @@ module PolarisCPU_tb();
 		tick(42);
 		tick(43);
 		tick(44);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_DEFF_F000);
 	end
 	endtask
@@ -590,14 +590,14 @@ module PolarisCPU_tb();
 
 		reset_i <= 1;
 		tick(1);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		assert_dsiz(2'b00);
 		assert_dsigned(0);
 		assert_dwe(0);
 		reset_i <= 0;
 		tick(2);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_trap(0);
 		iack_i <= 1;
 
@@ -607,7 +607,7 @@ module PolarisCPU_tb();
 		tick(10);
 		tick(11);
 		tick(12);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF04);
 
 		// LHU X1,$123(X2)
@@ -641,7 +641,7 @@ module PolarisCPU_tb();
 		tick(25);
 		assert_dcyc(0);
 		assert_dstb(0);
-		assert_isiz(2'b10);
+		assert_istb(1);
 
 		// LB X1,4(X1)
 		idat_i <= 32'b0000_0000_0100_00001_000_00001_0000011;
@@ -660,7 +660,7 @@ module PolarisCPU_tb();
 		tick(35);
 		assert_dcyc(0);
 		assert_dstb(0);
-		assert_isiz(2'b10);
+		assert_istb(1);
 
 		// SD X1, 12(X1)
 		idat_i <= 32'b0000000_00001_00001_011_01100_0100011;
@@ -687,7 +687,7 @@ module PolarisCPU_tb();
 		tick(44);
 		assert_dcyc(0);
 		assert_dstb(0);
-		assert_isiz(2'b10);
+		assert_istb(1);
 	end
 	endtask
 
@@ -697,14 +697,14 @@ module PolarisCPU_tb();
 
 		reset_i <= 1;
 		tick(1);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		assert_dsiz(2'b00);
 		assert_dsigned(0);
 		assert_dwe(0);
 		reset_i <= 0;
 		tick(2);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_trap(0);
 		iack_i <= 1;
 
@@ -715,7 +715,7 @@ module PolarisCPU_tb();
 		tick(11);
 		tick(12);
 		tick(13);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_0000);
 
 		// SD X5, 0(X0)
@@ -738,14 +738,14 @@ module PolarisCPU_tb();
 
 		reset_i <= 1;
 		tick(1);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		assert_dsiz(2'b00);
 		assert_dsigned(0);
 		assert_dwe(0);
 		reset_i <= 0;
 		tick(2);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_trap(0);
 		iack_i <= 1;
 
@@ -755,7 +755,7 @@ module PolarisCPU_tb();
 		tick(11);
 		tick(12);
 		tick(13);
-		assert_isiz(2'b10);
+		assert_istb(1);
 
 		//	beq	x1, x0, *+16
 		idat_i <= 32'b0000000_00000_00001_000_10000_1100011;
@@ -765,7 +765,7 @@ module PolarisCPU_tb();
 		tick(23);
 		tick(24);
 		tick(25);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF14);
 
 		//	bne	x1, x0, *+16
@@ -776,7 +776,7 @@ module PolarisCPU_tb();
 		tick(33);
 		tick(34);
 		tick(35);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF18);
 
 		//	blt	x1, x0, *+16
@@ -787,7 +787,7 @@ module PolarisCPU_tb();
 		tick(43);
 		tick(44);
 		tick(45);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF1C);
 
 		//	bge	x1, x0, *+16
@@ -798,7 +798,7 @@ module PolarisCPU_tb();
 		tick(53);
 		tick(54);
 		tick(55);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF2C);
 
 		//	bltu	x1, x0, *+16
@@ -809,7 +809,7 @@ module PolarisCPU_tb();
 		tick(63);
 		tick(64);
 		tick(65);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF30);
 
 		//	bgeu	x1, x0, *+16
@@ -820,7 +820,7 @@ module PolarisCPU_tb();
 		tick(73);
 		tick(74);
 		tick(75);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF40);
 
 		//	addi	x1, x0, -1
@@ -829,7 +829,7 @@ module PolarisCPU_tb();
 		tick(111);
 		tick(112);
 		tick(113);
-		assert_isiz(2'b10);
+		assert_istb(1);
 
 		//	beq	x1, x0, *+16
 		idat_i <= 32'b0000000_00000_00001_000_10000_1100011;
@@ -839,7 +839,7 @@ module PolarisCPU_tb();
 		tick(123);
 		tick(124);
 		tick(125);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF48);
 
 		//	bne	x1, x0, *+16
@@ -850,7 +850,7 @@ module PolarisCPU_tb();
 		tick(133);
 		tick(134);
 		tick(135);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF58);
 
 		//	blt	x1, x0, *+16
@@ -861,7 +861,7 @@ module PolarisCPU_tb();
 		tick(143);
 		tick(144);
 		tick(145);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF68);
 
 		//	bge	x1, x0, *+16
@@ -872,7 +872,7 @@ module PolarisCPU_tb();
 		tick(153);
 		tick(154);
 		tick(155);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF6C);
 
 		//	bltu	x1, x0, *+16
@@ -883,7 +883,7 @@ module PolarisCPU_tb();
 		tick(163);
 		tick(164);
 		tick(165);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF70);
 
 		//	bgeu	x1, x0, *+16
@@ -894,7 +894,7 @@ module PolarisCPU_tb();
 		tick(173);
 		tick(174);
 		tick(175);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF80);
 
 		//	addi	x1, x0, 1
@@ -903,7 +903,7 @@ module PolarisCPU_tb();
 		tick(211);
 		tick(212);
 		tick(213);
-		assert_isiz(2'b10);
+		assert_istb(1);
 
 		//	beq	x1, x0, *+16
 		idat_i <= 32'b0000000_00000_00001_000_10000_1100011;
@@ -913,7 +913,7 @@ module PolarisCPU_tb();
 		tick(223);
 		tick(224);
 		tick(225);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF88);
 
 		//	bne	x1, x0, *+16
@@ -924,7 +924,7 @@ module PolarisCPU_tb();
 		tick(233);
 		tick(234);
 		tick(235);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF98);
 
 		//	blt	x1, x0, *+16
@@ -935,7 +935,7 @@ module PolarisCPU_tb();
 		tick(243);
 		tick(244);
 		tick(245);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF9C);
 
 		//	bge	x1, x0, *+16
@@ -946,7 +946,7 @@ module PolarisCPU_tb();
 		tick(253);
 		tick(254);
 		tick(255);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FFAC);
 
 		//	bltu	x1, x0, *+16
@@ -957,7 +957,7 @@ module PolarisCPU_tb();
 		tick(263);
 		tick(264);
 		tick(265);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FFB0);
 
 		//	bgeu	x1, x0, *+16
@@ -968,7 +968,7 @@ module PolarisCPU_tb();
 		tick(273);
 		tick(274);
 		tick(275);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FFC0);
 	end
 	endtask
@@ -979,7 +979,7 @@ module PolarisCPU_tb();
 
 		reset_i <= 1;
 		tick(1);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		assert_dsiz(2'b00);
 		assert_dsigned(0);
 		assert_dwe(0);
@@ -987,7 +987,7 @@ module PolarisCPU_tb();
 		reset_i <= 0;
 		tick(2);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_trap(0);
 		iack_i <= 1;
 
@@ -998,7 +998,7 @@ module PolarisCPU_tb();
 		tick(12);
 		tick(13);
 		tick(14);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF04);
 
 		//	FENCE.I
@@ -1008,7 +1008,7 @@ module PolarisCPU_tb();
 		tick(22);
 		tick(23);
 		tick(24);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF08);
 	end
 	endtask
@@ -1019,7 +1019,7 @@ module PolarisCPU_tb();
 
 		reset_i <= 1;
 		tick(1);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		assert_dsiz(2'b00);
 		assert_dsigned(0);
 		assert_dwe(0);
@@ -1027,7 +1027,7 @@ module PolarisCPU_tb();
 		reset_i <= 0;
 		tick(2);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_trap(0);
 		assert_mie(0);
 		assert_mpie(1);
@@ -1041,7 +1041,7 @@ module PolarisCPU_tb();
 		tick(11);		// Internal cycle to set registers.
 		assert_trap(0);	
 		tick(12);		// Fetch first handler instruction.
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FE00);
 		assert_mepc(64'hFFFF_FFFF_FFFF_FF00);
 		assert_mie(0);
@@ -1051,7 +1051,7 @@ module PolarisCPU_tb();
 		idat_i <= 32'b0011_0000_0010_00000_000_00000_1110011;
 		tick(30);
 		tick(31);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
 		assert_mie(0);
 		assert_mpie(1);
@@ -1064,7 +1064,7 @@ module PolarisCPU_tb();
 		tick(21);
 		assert_trap(0);
 		tick(22);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FE00);
 	end
 	endtask
@@ -1075,7 +1075,7 @@ module PolarisCPU_tb();
 
 		reset_i <= 1;
 		tick(1);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		assert_dsiz(2'b00);
 		assert_dsigned(0);
 		assert_dwe(0);
@@ -1083,7 +1083,7 @@ module PolarisCPU_tb();
 		reset_i <= 0;
 		tick(2);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_trap(0);
 		assert_mie(0);
 		assert_mpie(1);
@@ -1094,12 +1094,12 @@ module PolarisCPU_tb();
 		tick(10);
 		assert_cadr(12'hFFF);
 		tick(11);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		assert_trap(1);
 		assert_cause(2);
 		tick(12);
 		tick(13);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_trap(0);
 
 		// ADDI X1, X0, $AA
@@ -1108,7 +1108,7 @@ module PolarisCPU_tb();
 		tick(21);
 		tick(22);
 		tick(23);
-		assert_isiz(2'b10);
+		assert_istb(1);
 
 		// CSRRW X0, X1, MSCRATCH
 		idat_i <= 32'b001101000000_00001_001_00000_1110011;
@@ -1125,7 +1125,7 @@ module PolarisCPU_tb();
 		tick(41);
 		tick(42);
 		tick(43);
-		assert_isiz(2'b10);
+		assert_istb(1);
 
 		// SB X1, 0(X1)
 		idat_i <= 32'b0000000_00001_00001_000_00000_0100011;
@@ -1201,7 +1201,7 @@ module PolarisCPU_tb();
 
 		reset_i <= 1;
 		tick(1);
-		assert_isiz(2'b00);
+		assert_istb(0);
 		assert_dsiz(2'b00);
 		assert_dsigned(0);
 		assert_dwe(0);
@@ -1209,7 +1209,7 @@ module PolarisCPU_tb();
 		reset_i <= 0;
 		tick(2);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
-		assert_isiz(2'b10);
+		assert_istb(1);
 		assert_trap(0);
 		assert_mie(0);
 		assert_mpie(1);
@@ -1221,7 +1221,7 @@ module PolarisCPU_tb();
 		tick(11);
 		tick(12);
 		tick(13);
-		assert_isiz(2'b10);
+		assert_istb(1);
 
 		// CSRRW X1, X1, MSCRATCH
 		idat_i <= 32'b001101000000_00001_001_00001_1110011;
@@ -1229,7 +1229,7 @@ module PolarisCPU_tb();
 		tick(21);
 		assert_cdat(64'h0);
 		tick(22);
-		assert_isiz(2'b10);
+		assert_istb(1);
 
 		// LD X1, 0(X1)		(load $AAAAAAAAAAAAAAAA)
 		idat_i <= 32'b000000000000_00001_000_00001_0000011;
@@ -1239,7 +1239,7 @@ module PolarisCPU_tb();
 		ddat_i <= 64'hAAAA_AAAA_AAAA_AAAA;
 		dack_i <= 1;
 		tick(33);
-		assert_isiz(2'b10);
+		assert_istb(1);
 
 		// CSRRS X0, X1, MSCRATCH
 		idat_i <= 32'b001101000000_00001_010_00000_1110011;
@@ -1248,7 +1248,7 @@ module PolarisCPU_tb();
 		tick(42);
 		assert_cdat(64'hAAAA_AAAA_AAAA_AAAA);
 		tick(43);
-		assert_isiz(2'b10);
+		assert_istb(1);
 
 		// LD X1, 0(X1)		(load $5555555555555555)
 		idat_i <= 32'b000000000000_00001_000_00001_0000011;
@@ -1258,7 +1258,7 @@ module PolarisCPU_tb();
 		ddat_i <= 64'h5555_5555_5555_5555;
 		dack_i <= 1;
 		tick(53);
-		assert_isiz(2'b10);
+		assert_istb(1);
 
 		// CSRRS X2, X1, MSCRATCH
 		idat_i <= 32'b001101000000_00001_010_00010_1110011;
@@ -1266,7 +1266,7 @@ module PolarisCPU_tb();
 		tick(61);
 		tick(62);
 		tick(63);
-		assert_isiz(2'b10);
+		assert_istb(1);
 
 		// SD X2, 0(X2)		(check for AAAA...)
 		idat_i <= 32'b0000000_00010_00010_011_00000_0100011;
@@ -1296,7 +1296,7 @@ module PolarisCPU_tb();
 		tick(101);
 		tick(102);
 		tick(103);
-		assert_isiz(2'b10);
+		assert_istb(1);
 
 		// CSRRW X1, X0, MSCRATCH
 		idat_i <= 32'b001101000000_00000_001_00001_1110011;

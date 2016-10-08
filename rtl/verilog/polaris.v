@@ -17,7 +17,7 @@ module PolarisCPU(
 	input			iack_i,
 	input	[31:0]		idat_i,
 	output	[63:0]		iadr_o,
-	output	[1:0]		isiz_o,
+	output			istb_o,
 
 	// D MASTER
 
@@ -49,7 +49,6 @@ module PolarisCPU(
 	wire		pc_mbvec, pc_pcPlus4;
 	wire		ft0_o;
 	wire		iadr_pc;
-	wire		isiz_2;
 	wire		ir_idat;
 
 	// Sequencer inputs
@@ -173,7 +172,6 @@ module PolarisCPU(
 	assign ra_mux = (ra_ir1 ? ir[19:15] : 0) |
 			(ra_ir2 ? ir[24:20] : 0) |
 			(ra_ird ? ir[11:7] : 0);	// Defaults to 0
-	assign isiz_o = isiz_2 ? 2'b10 : 2'b00;
 	wire pc_pc    = ~|{pc_mbvec,pc_pcPlus4,pc_alu,pc_mtvec,pc_mepc};
 	assign pc_mux = (pc_mbvec ? 64'hFFFF_FFFF_FFFF_FF00 : 64'h0) |
 			(pc_pcPlus4 ? pc + 4 : 64'h0) |
@@ -216,7 +214,7 @@ module PolarisCPU(
 		.xt2(xt2),
 		.xt3(xt3),
 		.ft0(ft0),
-		.isiz_2(isiz_2),
+		.istb_o(istb_o),
 		.iadr_pc(iadr_pc),
 		.iack_i(iack_i),
 		.pc_mbvec(pc_mbvec),
