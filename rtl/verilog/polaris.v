@@ -35,6 +35,15 @@ module PolarisCPU(
 
 	input	[63:0]		mtvec_i,
 
+	// CSR ACCESS
+
+	output	[11:0]		cadr_o,
+	output			coe_o,
+	output			cwe_o,
+	input			cvalid_i,
+	output	[63:0]		cdat_o,
+	input	[63:0]		cdat_i,
+
 	// SYSCON
 
 	input			clk_i,
@@ -108,6 +117,16 @@ module PolarisCPU(
 	wire		mie_mux, mpie_mux;
 	wire		mie_0, mie_mpie;
 	wire		mpie_mie, mpie_1;
+	wire		rdat_cdat, cdat_rdat;
+	wire		coe_1, cwe_1;
+
+	
+	wire rdNotZero = |ir[11:7];
+	wire r1NotZero = |ir[19:15];
+	assign coe_o = coe_1 & rdNotZero;
+	assign cwe_o = cwe_1 & r1NotZero;
+	assign cadr_o = ir[31:20];
+	assign cdat_o = (cdat_rdat ? rdat_o : 0);
 
 	assign mie_o = mie;
 	assign mpie_o = mpie;
@@ -161,6 +180,7 @@ module PolarisCPU(
 			(alub_alub ? alub : 0);
 	assign rdat_i = (rdat_alu ? aluXResult : 0) |
 			(rdat_ddat ? ddat_i : 0) |
+			(rdat_cdat ? cdat_i : 0) |
 			(rdat_pc ? pc : 0);
 	assign ra_mux = (ra_ir1 ? ir[19:15] : 0) |
 			(ra_ir2 ? ir[24:20] : 0) |
@@ -269,6 +289,11 @@ module PolarisCPU(
 		.mpie_1(mpie_1),
 		.mie_mpie(mie_mpie),
 		.mie_0(mie_0),
+		.csrok_i(cvalid_i),
+		.rdat_cdat(rdat_cdat),
+		.coe_o(coe_1),
+		.cdat_rdat(cdat_rdat),
+		.cwe_o(cwe_1),
 		.rst(rst)
 	);
 

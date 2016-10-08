@@ -24,6 +24,12 @@ module PolarisCPU_tb();
 	wire		dstb_o;
 	wire		dwe_o;
 
+	wire	[11:0]	cadr_o;
+	wire	[63:0]	cdat_o;
+	wire	[63:0]	cdat_i;
+	wire		coe_o, cwe_o;
+	wire		cvalid_i;
+
 	wire	[63:0]	mepc_o;
 	wire		mpie_o, mie_o;
 
@@ -51,6 +57,26 @@ module PolarisCPU_tb();
 	begin
 		if(iadr_o !== expected) begin
 		$display("@E %08X IADR_O Expected=%016X Got=%016X", story_o, expected, iadr_o);
+		$stop;
+		end
+	end
+	endtask
+
+	task assert_cdat;
+	input [63:0] expected;
+	begin
+		if(cdat_o !== expected) begin
+		$display("@E %08X CDAT_O Expected=%016X Got=%016X", story_o, expected, cdat_o);
+		$stop;
+		end
+	end
+	endtask
+
+	task assert_cadr;
+	input [11:0] expected;
+	begin
+		if(cadr_o !== expected) begin
+		$display("@E %08X CADR_O Expected=%03X Got=%03X", story_o, expected, cadr_o);
 		$stop;
 		end
 	end
@@ -156,6 +182,26 @@ module PolarisCPU_tb();
 	end
 	endtask
 
+	task assert_coe;
+	input expected;
+	begin
+		if(coe_o !== expected) begin
+		$display("@E %08X COE_O Expected=%d Got=%d", story_o, expected, coe_o);
+		$stop;
+		end
+	end
+	endtask
+
+	task assert_cwe;
+	input expected;
+	begin
+		if(cwe_o !== expected) begin
+		$display("@E %08X CWE_O Expected=%d Got=%d", story_o, expected, cwe_o);
+		$stop;
+		end
+	end
+	endtask
+
 	task assert_dstb;
 	input expected;
 	begin
@@ -221,6 +267,15 @@ module PolarisCPU_tb();
 		// CONFIG
 
 		.mtvec_i(64'hFFFF_FFFF_FFFF_FE00),
+
+		// CSRs
+
+		.cadr_o(cadr_o),
+		.coe_o(coe_o),
+		.cwe_o(cwe_o),
+		.cvalid_i(cvalid_i),
+		.cdat_o(cdat_o),
+		.cdat_i(cdat_i),
 
 		// SYSCON
 
@@ -1018,6 +1073,135 @@ module PolarisCPU_tb();
 	end
 	endtask
 
+	// Simplest possible CSR: a simple, dumb register.
+	// This emulates the mscratch register.
+	myMScratch mms(
+		.cadr_i(cadr_o),
+		.cvalid_o(cvalid_i),
+		.cdat_o(cdat_i),
+		.cdat_i(cdat_o),
+		.coe_i(coe_o),
+		.cwe_i(cwe_o),
+		.clk_i(clk_i)
+	);
+
+	task test_csrrw;
+	begin
+		scenario(9);
+
+		reset_i <= 1;
+		tick(1);
+		assert_isiz(2'b00);
+		assert_dsiz(2'b00);
+		assert_dsigned(0);
+		assert_dwe(0);
+
+		reset_i <= 0;
+		tick(2);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
+		assert_isiz(2'b10);
+		assert_trap(0);
+		assert_mie(0);
+		assert_mpie(1);
+		iack_i <= 1;
+
+		// CSRRW X1, X2, $FFF	(guaranteed unsupported CSR)
+		idat_i <= 32'b111111111111_00010_001_00001_1110011;
+		tick(10);
+		assert_cadr(12'hFFF);
+		tick(11);
+		assert_isiz(2'b00);
+		assert_trap(1);
+		assert_cause(2);
+		tick(12);
+		tick(13);
+		assert_isiz(2'b10);
+		assert_trap(0);
+
+		// ADDI X1, X0, $AA
+		idat_i <= 32'b000010101010_00000_000_00001_0011011;
+		tick(20);
+		tick(21);
+		tick(22);
+		tick(23);
+		assert_isiz(2'b10);
+
+		// CSRRW X0, X1, MSCRATCH
+		idat_i <= 32'b001101000000_00001_001_00000_1110011;
+		tick(30);
+		tick(31);
+		assert_coe(0);	// Rd = X0, so no CSR read!
+		assert_cwe(1);
+		assert_cdat(64'h0000_0000_0000_00aa);
+		tick(32);
+
+		// ADDI X1, X0, $55
+		idat_i <= 32'b000001010101_00000_000_00001_0011011;
+		tick(40);
+		tick(41);
+		tick(42);
+		tick(43);
+		assert_isiz(2'b10);
+
+		// SB X1, 0(X1)
+		idat_i <= 32'b0000000_00001_00001_000_00000_0100011;
+		tick(45);
+		tick(46);
+		tick(47);
+		assert_dsiz(2'b00);
+		assert_dcyc(1);
+		assert_dstb(1);
+		assert_dadr(64'h0000_0000_0000_0055);
+		assert_ddat(64'h0000_0000_0000_0055);
+		assert_dwe(1);
+		tick(48);
+
+		// CSRRW X1, X1, MSCRATCH
+		idat_i <= 32'b001101000000_00001_001_00001_1110011;
+		tick(50);
+		tick(51);
+		assert_coe(1);	// Rd = X1, so this time we read CSR
+		assert_cwe(1);
+		assert_cdat(64'h0000_0000_0000_0055);
+		tick(52);
+
+		// SB X1, 0(X1)
+		idat_i <= 32'b0000000_00001_00001_000_00000_0100011;
+		tick(60);
+		tick(61);
+		tick(62);
+		assert_dsiz(2'b00);
+		assert_dcyc(1);
+		assert_dstb(1);
+		assert_dadr(64'h0000_0000_0000_00AA);
+		assert_ddat(64'h0000_0000_0000_00AA);
+		assert_dwe(1);
+		tick(63);
+
+		// CSRRW X1, X1, MSCRATCH
+		idat_i <= 32'b001101000000_00001_001_00001_1110011;
+		tick(70);
+		tick(71);
+		assert_coe(1);	// Rd = X1, so this time we read CSR
+		assert_cwe(1);
+		assert_cdat(64'h0000_0000_0000_00AA);
+		tick(72);
+
+		// SB X1, 0(X1)
+		idat_i <= 32'b0000000_00001_00001_000_00000_0100011;
+		tick(80);
+		tick(81);
+		tick(82);
+		assert_dsiz(2'b00);
+		assert_dcyc(1);
+		assert_dstb(1);
+		assert_dadr(64'h0000_0000_0000_0055);
+		assert_ddat(64'h0000_0000_0000_0055);
+		assert_dwe(1);
+		tick(83);
+	end
+	endtask
+
 	initial begin
 		clk_i <= 0;
 		reset_i <= 0;
@@ -1035,7 +1219,28 @@ module PolarisCPU_tb();
 		test_b();
 		test_fence();
 		test_e();
+		test_csrrw();
 		$display("@I Done."); $stop;
+	end
+endmodule
+
+module myMScratch(
+	input	[11:0]	cadr_i,
+	output		cvalid_o,
+	output	[63:0]	cdat_o,
+	input	[63:0]	cdat_i,
+	input		coe_i,
+	input		cwe_i,
+	input		clk_i
+);
+	reg	[63:0]	register;
+	wire	[63:0]	mux;
+
+	assign cvalid_o = cadr_i == 12'h340;
+	assign cdat_o = (cvalid_o & coe_i) ? register : 0;
+	assign mux = (cvalid_o & cwe_i) ? cdat_i : register;
+	always @(posedge clk_i) begin
+		register <= mux;
 	end
 endmodule
 

@@ -10,6 +10,7 @@
            xt4
            [ccr "[7:0]"]
            trap
+           csrok_i
           ]
   &output [ft0_o
            pc_mbvec
@@ -69,6 +70,10 @@
            pc_mepc
            mie_mpie
            mpie_1
+           rdat_cdat
+           coe_o
+           cdat_rdat
+           cwe_o
           ]
   &wire   [isOpI
            isOpR
@@ -84,6 +89,7 @@
            isECall
            isEBreak
            isMRet
+           isCsrRw
           ]
  ]
 
@@ -223,5 +229,12 @@
  [on [["ir[31:0]" "32'b0011_0000_0010_00000_000_00000_1110011"]]        isMRet]
 
  [on [~rst isMRet xt0]                  ft0_o pc_mepc mie_mpie mpie_1]
+
+ [on [["ir[6:0]" "7'b1110011"] fn3_is_001]	isCsrRw]
+ \\ CSR address automatically taken from IR[31:20].
+
+ \\ If CSR not OK, then nothing fires, and we invoke illegal instruction trap in next cycle.
+ [on [~rst isCsrRw xt0 csrok_i]		xt1_o ra_ir1]
+ [on [~rst isCsrRw xt1]			ra_ird rdat_cdat coe_o rwe_o  cdat_rdat cwe_o ft0_o]
 ]
 
