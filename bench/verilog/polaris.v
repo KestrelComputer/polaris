@@ -264,10 +264,6 @@ module PolarisCPU_tb();
 		.dsiz_o(dsiz_o),
 		.dsigned_o(dsigned_o),
 
-		// CONFIG
-
-		.mtvec_i(64'hFFFF_FFFF_FFFF_FE00),
-
 		// CSRs
 
 		.cadr_o(cadr_o),

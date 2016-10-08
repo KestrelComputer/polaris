@@ -31,10 +31,6 @@ module PolarisCPU(
 	output	[1:0]		dsiz_o,
 	output			dsigned_o,
 
-	// CONFIGURATION
-
-	input	[63:0]		mtvec_i,
-
 	// CSR ACCESS
 
 	output	[11:0]		cadr_o,
@@ -124,6 +120,7 @@ module PolarisCPU(
 	wire		alua_cdat;
 	wire		icvalid_i;
 	wire	[63:0]	icdat_i;
+	wire	[63:0]	mtvec_i;
 
 	wire		cvalid = icvalid_i | cvalid_i;
 	wire	[63:0]	ucdat_i = icdat_i | cdat_i;
