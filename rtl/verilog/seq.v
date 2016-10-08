@@ -80,7 +80,7 @@ module Sequencer(
 	output 	xt0_o,
 	output 	ir_idat,
 	output 	pc_pcPlus4,
-	output 	isiz_2,
+	output 	istb_o,
 	output 	iadr_pc,
 	output 	pc_mbvec,
 	output 	ft0_o
@@ -560,6 +560,7 @@ assign ddat_rdat = out1667|out1659;
 assign mpie_mie = out1519;
 assign mie_mpie = out1712;
 assign rsh_en = out1585|out1584|out1554|out1553;
+assign istb_o = out1512|out1509;
 assign rwe_o = out1783|out1770|out1756|out1743|out1733|out1725|out1644|out1622|out1608|out1596|out1569|out1541;
 assign alua_rdat = out1675|out1650|out1630|out1600|out1563|out1537;
 assign alub_imm12i = out1631|out1601|out1538;
@@ -599,7 +600,6 @@ assign xt0_o = out1516;
 assign isCsrRwI = out1717;
 assign xt1_o = out1778|out1764|out1751|out1737|out1729|out1720|out1695|out1671|out1647|out1627|out1616|out1605|out1593|out1560|out1534;
 assign alub_imm5 = out1785|out1758;
-assign isiz_2 = out1512|out1509;
 assign xt2_o = out1779|out1766|out1752|out1739|out1697|out1673|out1653|out1649|out1632|out1629|out1609|out1597|out1562|out1536;
 assign isOpR = out1533;
 assign xt3_o = out1699|out1676|out1599|out1565;
