@@ -1211,6 +1211,125 @@ module PolarisCPU_tb();
 	end
 	endtask
 
+	task test_csrrx;
+	begin
+		scenario(10);
+
+$monitor("%b %016X %016X", clk_i, cdat_i, cdat_o);
+
+		reset_i <= 1;
+		tick(1);
+		assert_isiz(2'b00);
+		assert_dsiz(2'b00);
+		assert_dsigned(0);
+		assert_dwe(0);
+
+		reset_i <= 0;
+		tick(2);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
+		assert_isiz(2'b10);
+		assert_trap(0);
+		assert_mie(0);
+		assert_mpie(1);
+		iack_i <= 1;
+
+		// ADDI X1, X0, 0
+		idat_i <= 32'b000000000000_00000_000_00001_0011011;
+		tick(10);
+		tick(11);
+		tick(12);
+		tick(13);
+		assert_isiz(2'b10);
+
+		// CSRRW X1, X1, MSCRATCH
+		idat_i <= 32'b001101000000_00001_001_00001_1110011;
+		tick(20);
+		tick(21);
+		assert_cdat(64'h0);
+		tick(22);
+		assert_isiz(2'b10);
+
+		// LD X1, 0(X1)		(load $AAAAAAAAAAAAAAAA)
+		idat_i <= 32'b000000000000_00001_000_00001_0000011;
+		tick(30);
+		tick(31);
+		tick(32);
+		ddat_i <= 64'hAAAA_AAAA_AAAA_AAAA;
+		dack_i <= 1;
+		tick(33);
+		assert_isiz(2'b10);
+
+		// CSRRS X0, X1, MSCRATCH
+		idat_i <= 32'b001101000000_00001_010_00000_1110011;
+		tick(40);
+		tick(41);
+		tick(42);
+		assert_cdat(64'hAAAA_AAAA_AAAA_AAAA);
+		tick(43);
+		assert_isiz(2'b10);
+
+		// LD X1, 0(X1)		(load $5555555555555555)
+		idat_i <= 32'b000000000000_00001_000_00001_0000011;
+		tick(50);
+		tick(51);
+		tick(52);
+		ddat_i <= 64'h5555_5555_5555_5555;
+		dack_i <= 1;
+		tick(53);
+		assert_isiz(2'b10);
+
+		// CSRRS X2, X1, MSCRATCH
+		idat_i <= 32'b001101000000_00001_010_00010_1110011;
+		tick(60);
+		tick(61);
+		tick(62);
+		tick(63);
+		assert_isiz(2'b10);
+
+		// SD X2, 0(X2)		(check for AAAA...)
+		idat_i <= 32'b0000000_00010_00010_011_00000_0100011;
+		tick(70);
+		tick(71);
+		tick(72);
+		assert_ddat(64'hAAAA_AAAA_AAAA_AAAA);
+		tick(73);
+
+		// CSRRW X2, X0, MSCRATCH
+		idat_i <= 32'b001101000000_00000_001_00010_1110011;
+		tick(80);
+		tick(81);
+		tick(82);
+
+		// SD X2, 0(X2)		(check for FFFF...)
+		idat_i <= 32'b0000000_00010_00010_011_00000_0100011;
+		tick(90);
+		tick(91);
+		tick(92);
+		assert_ddat(64'hFFFF_FFFF_FFFF_FFFF);
+		tick(93);
+
+		// CSRRCI X0, $1F, MSCRATCH
+		idat_i <= 32'b001101000000_11111_111_00000_1110011;
+		tick(100);
+		tick(101);
+		tick(102);
+
+		// CSRRW X1, X0, MSCRATCH
+		idat_i <= 32'b001101000000_00000_001_00001_1110011;
+		tick(110);
+		tick(111);
+		tick(112);
+
+		// SD X1, 0(X1)
+		idat_i <= 32'b0000000_00001_00001_011_00000_0100011;
+		tick(120);
+		tick(121);
+		tick(122);
+		assert_ddat(64'hFFFF_FFFF_FFFF_FFE0);
+		tick(123);
+	end
+	endtask
+
 	initial begin
 		clk_i <= 0;
 		reset_i <= 0;
@@ -1229,6 +1348,7 @@ module PolarisCPU_tb();
 		test_fence();
 		test_e();
 		test_csrrw();
+		test_csrrx();
 		$display("@I Done."); $stop;
 	end
 endmodule

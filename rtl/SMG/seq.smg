@@ -75,6 +75,9 @@
            cdat_rdat
            cwe_o
            cdat_imm5
+           cdat_alu
+           alua_cdat
+           alub_imm5
           ]
   &wire   [isOpI
            isOpR
@@ -91,6 +94,11 @@
            isEBreak
            isMRet
            isCsrRw
+           isCsrRwI
+           isCsrRs
+           isCsrRsI
+           isCsrRc
+           isCsrRcI
           ]
  ]
 
@@ -232,7 +240,11 @@
  [on [~rst isMRet xt0]                  ft0_o pc_mepc mie_mpie mpie_1]
 
  [on [["ir[6:0]" "7'b1110011"] fn3_is_001]      isCsrRw]
+ [on [["ir[6:0]" "7'b1110011"] fn3_is_010]      isCsrRs]
+ [on [["ir[6:0]" "7'b1110011"] fn3_is_011]      isCsrRc]
  [on [["ir[6:0]" "7'b1110011"] fn3_is_101]      isCsrRwI]
+ [on [["ir[6:0]" "7'b1110011"] fn3_is_110]      isCsrRsI]
+ [on [["ir[6:0]" "7'b1110011"] fn3_is_111]      isCsrRcI]
 
  \\ CSR address automatically taken from IR[31:20].
  \\ If CSR not OK, then nothing fires, and we invoke illegal instruction trap in next cycle.
@@ -242,5 +254,21 @@
 
  [on [~rst isCsrRwI xt0 csrok_i]        xt1_o]
  [on [~rst isCsrRwI xt1]                ra_ird rdat_cdat coe_o rwe_o  cdat_imm5 cwe_o ft0_o]
+
+ [on [~rst isCsrRs xt0 csrok_i]         xt1_o ra_ir1]
+ [on [~rst isCsrRs xt1]                 xt2_o ra_ird rdat_cdat coe_o rwe_o  alua_cdat alub_rdat]
+ [on [~rst isCsrRs xt2]                 and_en xor_en cdat_alu cwe_o ft0_o]
+
+ [on [~rst isCsrRsI xt0 csrok_i]        xt1_o]
+ [on [~rst isCsrRsI xt1]                xt2_o ra_ird rdat_cdat coe_o rwe_o  alua_cdat alub_imm5]
+ [on [~rst isCsrRsI xt2]                and_en xor_en cdat_alu cwe_o ft0_o]
+
+ [on [~rst isCsrRc xt0 csrok_i]         xt1_o ra_ir1]
+ [on [~rst isCsrRc xt1]                 xt2_o ra_ird rdat_cdat coe_o rwe_o  alua_cdat alub_rdat]
+ [on [~rst isCsrRc xt2]                 and_en invB_en cdat_alu cwe_o ft0_o]
+
+ [on [~rst isCsrRcI xt0 csrok_i]        xt1_o]
+ [on [~rst isCsrRcI xt1]                xt2_o ra_ird rdat_cdat coe_o rwe_o  alua_cdat alub_imm5]
+ [on [~rst isCsrRcI xt2]                and_en invB_en cdat_alu cwe_o ft0_o]
 ]
 
