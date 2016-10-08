@@ -1215,8 +1215,6 @@ module PolarisCPU_tb();
 	begin
 		scenario(10);
 
-$monitor("%b %016X %016X", clk_i, cdat_i, cdat_o);
-
 		reset_i <= 1;
 		tick(1);
 		assert_isiz(2'b00);
@@ -1313,6 +1311,8 @@ $monitor("%b %016X %016X", clk_i, cdat_i, cdat_o);
 		tick(100);
 		tick(101);
 		tick(102);
+		tick(103);
+		assert_isiz(2'b10);
 
 		// CSRRW X1, X0, MSCRATCH
 		idat_i <= 32'b001101000000_00000_001_00001_1110011;
@@ -1366,7 +1366,7 @@ module myMScratch(
 	wire	[63:0]	mux;
 
 	assign cvalid_o = cadr_i == 12'h340;
-	assign cdat_o = (cvalid_o & coe_i) ? register : 0;
+	assign cdat_o = cvalid_o ? register : 0;
 	assign mux = (cvalid_o & cwe_i) ? cdat_i : register;
 	always @(posedge clk_i) begin
 		register <= mux;
