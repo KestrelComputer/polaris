@@ -119,14 +119,17 @@ module PolarisCPU(
 	wire		mpie_mie, mpie_1;
 	wire		rdat_cdat, cdat_rdat;
 	wire		coe_1, cwe_1;
+	wire		cdat_imm5;
 
 	
 	wire rdNotZero = |ir[11:7];
 	wire r1NotZero = |ir[19:15];
+	wire [63:0] imm5 = {59'b0, ir[19:15]};
 	assign coe_o = coe_1 & rdNotZero;
 	assign cwe_o = cwe_1 & r1NotZero;
 	assign cadr_o = ir[31:20];
-	assign cdat_o = (cdat_rdat ? rdat_o : 0);
+	assign cdat_o = (cdat_rdat ? rdat_o : 0) |
+			(cdat_imm5 ? imm5 : 0);
 
 	assign mie_o = mie;
 	assign mpie_o = mpie;
@@ -294,6 +297,7 @@ module PolarisCPU(
 		.coe_o(coe_1),
 		.cdat_rdat(cdat_rdat),
 		.cwe_o(cwe_1),
+		.cdat_imm5(cdat_imm5),
 		.rst(rst)
 	);
 

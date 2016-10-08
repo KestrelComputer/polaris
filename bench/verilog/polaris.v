@@ -1199,6 +1199,15 @@ module PolarisCPU_tb();
 		assert_ddat(64'h0000_0000_0000_0055);
 		assert_dwe(1);
 		tick(83);
+
+		// CSRRWI X0, $1F, MSCRATCH
+		idat_i <= 32'b001101000000_11111_101_00000_1110011;
+		tick(90);
+		tick(91);
+		assert_coe(0);
+		assert_cwe(1);
+		assert_cdat(64'h0000_0000_0000_001F);
+		tick(92);
 	end
 	endtask
 
