@@ -113,8 +113,7 @@ module PolarisCPU(
 	wire	[63:0]	mepc_mux;
 	wire		mepc_ia;
 	wire		pc_mepc;
-	reg		mie, mpie;
-	wire		mie_mux, mpie_mux;
+	wire		mie, mpie;
 	wire		mie_0, mie_mpie;
 	wire		mpie_mie, mpie_1;
 	wire		rdat_cdat, cdat_rdat;
@@ -123,8 +122,12 @@ module PolarisCPU(
 	wire		cdat_alu;
 	wire		alub_imm5;
 	wire		alua_cdat;
+	wire		icvalid_i;
+	wire	[63:0]	icdat_i;
 
-	
+	wire		cvalid = icvalid_i | cvalid_i;
+	wire	[63:0]	ucdat_i = icdat_i | cdat_i;
+
 	wire rdNotZero = |ir[11:7];
 	wire r1NotZero = |ir[19:15];
 	wire [63:0] imm5 = {59'b0, ir[19:15]};
@@ -134,27 +137,6 @@ module PolarisCPU(
 	assign cdat_o = (cdat_rdat ? rdat_o : 0) |
 			(cdat_alu ? aluXResult : 0) |
 			(cdat_imm5 ? imm5 : 0);
-
-	assign mie_o = mie;
-	assign mpie_o = mpie;
-	wire mie_mie = ~|{mie_0, mie_mpie};
-	assign mie_mux =
-			(mie_0 ? 0 : 0) |
-			(mie_mpie ? mpie : 0) |
-			(mie_mie ? mie : 0);
-	wire mpie_mpie = ~|{mpie_mie, mpie_1};
-	assign mpie_mux =
-			(mpie_mie ? mie : 0) |
-			(mpie_1 ? 1 : 0) |
-			(mpie_mpie ? mpie : 0);
-
-	assign mepc_o = mepc;
-	assign mepc_mux = mepc_ia ? ia : mepc;
-
-	assign cause_o =
-			mcause_2 ? 4'd2 :
-			mcause_3 ? 4'd3 :
-			mcause_11 ? 4'd11 : 0;
 
 	wire ltFlag = aluXResult[63] ^ vflag_o;
 	assign ccr_mux = ccr_alu ? {cflag_o, ~cflag_o, ~ltFlag, ltFlag, 2'b00, ~zflag_o, zflag_o} : ccr;
@@ -176,7 +158,7 @@ module PolarisCPU(
 	assign alua_mux =	// ignore alua_0 since that will force alua=0.
 			(alua_ia ? ia : 0) |
 			(alua_rdat ? rdat_o : 0) |
-			(alua_cdat ? cdat_i : 0) |
+			(alua_cdat ? ucdat_i : 0) |
 			(alua_alua ? alua : 0);
 	assign alub_mux =
 			(alub_rdat ? rdat_o : 0) |
@@ -189,7 +171,7 @@ module PolarisCPU(
 			(alub_alub ? alub : 0);
 	assign rdat_i = (rdat_alu ? aluXResult : 0) |
 			(rdat_ddat ? ddat_i : 0) |
-			(rdat_cdat ? cdat_i : 0) |
+			(rdat_cdat ? ucdat_i : 0) |
 			(rdat_pc ? pc : 0);
 	assign ra_mux = (ra_ir1 ? ir[19:15] : 0) |
 			(ra_ir2 ? ir[24:20] : 0) |
@@ -200,7 +182,7 @@ module PolarisCPU(
 			(pc_pcPlus4 ? pc + 4 : 64'h0) |
 			(pc_alu ? aluXResult : 64'h0) |
 			(pc_mtvec ? mtvec_i : 64'h0) |
-			(pc_mepc ? mepc : 64'h0) |
+			(pc_mepc ? mepc_o : 64'h0) |
 			(pc_pc ? pc : 64'h0);	// base case
 	wire ia_ia    = ~ia_pc;
         assign ia_mux = (ia_pc ? pc : 0) |
@@ -225,9 +207,6 @@ module PolarisCPU(
 		alub <= alub_mux;
 		ccr <= ccr_mux;
 		trap <= trap_o;
-		mepc <= mepc_mux;
-		mie <= mie_mux;
-		mpie <= mpie_mux;
 	end
 
 	Sequencer s(
@@ -298,7 +277,7 @@ module PolarisCPU(
 		.mpie_1(mpie_1),
 		.mie_mpie(mie_mpie),
 		.mie_0(mie_0),
-		.csrok_i(cvalid_i),
+		.csrok_i(cvalid),
 		.rdat_cdat(rdat_cdat),
 		.coe_o(coe_1),
 		.cdat_rdat(cdat_rdat),
@@ -334,5 +313,233 @@ module PolarisCPU(
 		.zflag_o(zflag_o)
 	);
 
+	CSRs csrs(
+		.cadr_i(cadr_o),
+		.cvalid_o(icvalid_i),
+		.cdat_o(icdat_i),
+		.cdat_i(cdat_o),
+		.coe_i(coe_o),
+		.cwe_i(cwe_o),
+
+		.mie_0(mie_0),
+		.mie_mpie(mie_mpie),
+		.mpie_mie(mpie_mie),
+		.mpie_1(mpie_1),
+		.mtvec_o(mtvec_i),
+		.mepc_o(mepc_o),
+		.mie_o(mie_o),
+		.mpie_o(mpie_o),
+		.ft0_i(ft0),
+		.tick_i(1'b0),	// for now
+		.mcause_2(mcause_2),
+		.mcause_3(mcause_3),
+		.mcause_11(mcause_11),
+		.mepc_ia(mepc_ia),
+		.ia_i(ia),
+		.cause_o(cause_o),
+
+		.reset_i(reset_i),
+		.clk_i(clk_i)
+	);
+endmodule
+
+
+module CSRs(
+	input	[11:0]	cadr_i,
+	output		cvalid_o,
+	output	[63:0]	cdat_o,
+	input	[63:0]	cdat_i,
+	input		coe_i,
+	input		cwe_i,
+
+	input		mie_0,
+	input		mie_mpie,
+	input		mpie_mie,
+	input		mpie_1,
+	output	[63:0]	mtvec_o,
+	output	[63:0]	mepc_o,
+	output	[3:0]	cause_o,
+	input	[63:0]	ia_i,
+	output		mie_o,
+	output		mpie_o,
+	input		ft0_i,
+	input		tick_i,
+	input		mcause_2,
+	input		mcause_3,
+	input		mcause_11,
+	input		mepc_ia,
+
+	input		reset_i,
+	input		clk_i
+);
+	reg		mpie, mie;
+	reg	[63:0]	mtvec;
+	reg	[63:0]	mscratch;
+	reg	[63:0]	mepc;
+	reg	[3:0]	mcause;
+	reg	[63:0]	mbadaddr;
+	reg	[63:0]	mcycle;
+	reg	[63:0]	mtime;
+	reg	[63:0]	minstret;
+
+	wire		mpie_mux, mie_mux;
+	wire	[63:0]	mtvec_mux;
+	wire	[63:0]	mscratch_mux;
+	wire	[63:0]	mepc_mux;
+	wire	[3:0]	mcause_mux;
+	wire	[63:0]	mbadaddr_mux;
+	wire	[63:0]	mcycle_mux;
+	wire	[63:0]	mtime_mux;
+	wire	[63:0]	minstret_mux;
+
+	assign mtvec_o = mtvec;
+	assign mepc_o = mepc;
+
+	wire		csrv_misa = (cadr_i == 12'hF10);
+	wire		csrv_mvendorid = (cadr_i == 12'hF11);
+	wire		csrv_marchid = (cadr_i == 12'hF12);
+	wire		csrv_mimpid = (cadr_i == 12'hF13);
+	wire		csrv_mhartid = (cadr_i == 12'hF14);
+	wire		csrv_mstatus = (cadr_i == 12'h300);
+	wire		csrv_medeleg = (cadr_i == 12'h302);
+	wire		csrv_mideleg = (cadr_i == 12'h303);
+	wire		csrv_mie = (cadr_i == 12'h304);
+	wire		csrv_mtvec = (cadr_i == 12'h305);
+	wire		csrv_mscratch = (cadr_i == 12'h340);
+	wire		csrv_mepc = (cadr_i == 12'h341);
+	wire		csrv_mcause = (cadr_i == 12'h342);
+	wire		csrv_mbadaddr = (cadr_i == 12'h343);
+	wire		csrv_mip = (cadr_i == 12'h344);
+	wire		csrv_mcycle = (cadr_i == 12'hF00);
+	wire		csrv_mtime = (cadr_i == 12'hF01);
+	wire		csrv_minstret = (cadr_i == 12'hF02);
+
+	assign cvalid_o = |{
+		csrv_misa, csrv_mvendorid, csrv_marchid,
+		csrv_mimpid, csrv_mhartid, csrv_mstatus,
+		csrv_medeleg, csrv_mideleg, csrv_mie,
+		csrv_mtvec, csrv_mscratch, csrv_mepc,
+		csrv_mcause, csrv_mbadaddr, csrv_mip,
+		csrv_mcycle, csrv_mtime, csrv_minstret
+	};
+
+	wire	[63:0]	csrd_misa = {2'b10, 36'd0, 26'b00000001000000000100000000};
+	wire	[63:0]	csrd_mvendorid = 64'd0;
+	wire	[63:0]	csrd_marchid = 64'd0;
+	wire	[63:0]	csrd_mimpid = 64'h1161008010000000;
+	wire	[63:0]	csrd_mhartid = 64'd0;
+	wire	[63:0]	csrd_mstatus = {
+		1'b0,		// SD
+		34'd0,		// reserved		
+		5'b00000,	// VM
+		4'b0000,	// reserved
+		3'b000,		// MXR, PUM, MPRV
+		2'b00,		// XS
+		2'b00,		// FS
+		2'b11,		// MPP
+		2'b11,		// HPP
+		1'b1,		// SPP
+		mpie, 3'b000,
+		mie, 3'b000
+	};
+	wire	[63:0]	csrd_medeleg = 64'd0;
+	wire	[63:0]	csrd_mideleg = 64'd0;
+	wire	[63:0]	csrd_mie = 64'd0;	// for now
+	wire	[63:0]	csrd_mtvec = mtvec;
+	wire	[63:0]	csrd_mscratch = mscratch;
+	wire	[63:0]	csrd_mepc = mepc;
+	wire	[63:0]	csrd_mcause = {
+		1'b0,		// isIrq
+		59'd0,		// reserved
+		mcause
+	};
+	wire	[63:0]	csrd_mbadaddr = mbadaddr;
+	wire	[63:0]	csrd_mip = 64'd0;	// for now
+	wire	[63:0]	csrd_mcycle = mcycle;
+	wire	[63:0]	csrd_mtime = mtime;
+	wire	[63:0]	csrd_minstret = minstret;
+
+	assign cdat_o =
+		(csrv_misa ? csrd_misa : 0) |
+		(csrv_mvendorid ? csrd_mvendorid : 0) |
+		(csrv_marchid ? csrd_marchid : 0) |
+		(csrv_mimpid ? csrd_mimpid : 0) |
+		(csrv_mhartid ? csrd_mhartid : 0) |
+		(csrv_mstatus ? csrd_mstatus : 0) |
+		(csrv_medeleg ? csrd_medeleg : 0) |
+		(csrv_mideleg ? csrd_mideleg : 0) |
+		(csrv_mie ? csrd_mie : 0) |
+		(csrv_mtvec ? csrd_mtvec : 0) |
+		(csrv_mscratch ? csrd_mscratch : 0) |
+		(csrv_mepc ? csrd_mepc : 0) |
+		(csrv_mcause ? csrd_mcause : 0) |
+		(csrv_mbadaddr ? csrd_mbadaddr : 0) |
+		(csrv_mip ? csrd_mip : 0) |
+		(csrv_mcycle ? csrd_mcycle : 0) |
+		(csrv_mtime ? csrd_mtime : 0) |
+		(csrv_minstret ? csrd_minstret : 0);
+
+	wire mstatus_we = csrv_mstatus & cwe_i;
+	wire mie_mie = ~|{mie_0, mie_mpie, mstatus_we};
+	assign mie_mux =
+			(mie_0 ? 0 : 0) |
+			(mie_mpie ? mpie : 0) |
+			(mstatus_we ? cdat_i[3] : 0) |
+			(mie_mie ? mie : 0);
+
+	wire mpie_mpie = ~|{mpie_mie, mpie_1, mstatus_we};
+	assign mpie_mux =
+			(mpie_mie ? mie : 0) |
+			(mpie_1 ? 1 : 0) |
+			(mstatus_we ? cdat_i[7] : 0) |
+			(mpie_mpie ? mpie : 0);
+	assign mie_o = mie;
+	assign mpie_o = mpie;
+
+	wire mtvec_we = csrv_mtvec & cwe_i;
+	wire mtvec_mtvec = ~|{mtvec_we, reset_i};
+	assign mtvec_mux =
+			(mtvec_we ? cdat_i : 0) |
+			(reset_i ? 64'hFFFF_FFFF_FFFF_FE00 : 0) |
+			(mtvec_mtvec ? mtvec : 0);
+
+	wire mscratch_we = csrv_mscratch & cwe_i;
+	assign mscratch_mux = (mscratch_we ? cdat_i : mscratch);
+
+	wire mepc_we = csrv_mepc & cwe_i;
+	wire mepc_mepc = ~|{mepc_we, mepc_ia};
+	assign mepc_mux =
+			(mepc_we ? cdat_i : 0) |
+			(mepc_ia ? ia_i : 0) |
+			(mepc_mepc ? mepc : 0);
+
+	wire mcause_we = csrv_mcause & cwe_i;
+	wire mcause_mcause = ~|{mcause_2, mcause_3, mcause_11, mcause_we};
+	assign cause_o = mcause_mux;
+	assign mcause_mux =
+			(mcause_we ? cdat_i[3:0] : 0) |
+			(mcause_2 ? 4'd2 : 0) |
+			(mcause_3 ? 4'd3 : 0) |
+			(mcause_11 ? 4'd11 : 0);
+
+	wire mbadaddr_we = csrv_mbadaddr & cwe_i;
+	assign mbadaddr_mux = (mbadaddr_we ? cdat_i : mbadaddr);
+
+	assign mcycle_mux = mcycle + 1;
+	assign minstret_mux = (ft0_i ? minstret + 1 : minstret);
+	assign mtime_mux = (tick_i ? mtime+1 : mtime);
+
+	always @(posedge clk_i) begin
+		mie <= mie_mux;
+		mpie <= mpie_mux;
+		mtvec <= mtvec_mux;
+		mscratch <= mscratch_mux;
+		mepc <= mepc_mux;
+		mcause <= mcause_mux;
+		mbadaddr <= mbadaddr_mux;
+		mcycle <= mcycle_mux;
+		minstret <= minstret_mux;
+		mtime <= mtime_mux;
+	end
 endmodule
 

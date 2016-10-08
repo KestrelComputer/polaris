@@ -26,9 +26,9 @@ module PolarisCPU_tb();
 
 	wire	[11:0]	cadr_o;
 	wire	[63:0]	cdat_o;
-	wire	[63:0]	cdat_i;
+	reg	[63:0]	cdat_i;
 	wire		coe_o, cwe_o;
-	wire		cvalid_i;
+	reg		cvalid_i;
 
 	wire	[63:0]	mepc_o;
 	wire		mpie_o, mie_o;
@@ -1073,18 +1073,6 @@ module PolarisCPU_tb();
 	end
 	endtask
 
-	// Simplest possible CSR: a simple, dumb register.
-	// This emulates the mscratch register.
-	myMScratch mms(
-		.cadr_i(cadr_o),
-		.cvalid_o(cvalid_i),
-		.cdat_o(cdat_i),
-		.cdat_i(cdat_o),
-		.coe_i(coe_o),
-		.cwe_i(cwe_o),
-		.clk_i(clk_i)
-	);
-
 	task test_csrrw;
 	begin
 		scenario(9);
@@ -1337,6 +1325,8 @@ module PolarisCPU_tb();
 		dack_i <= 0;
 		idat_i <= 32'h0000_0000;	// Guaranteed illegal instruction
 		ddat_i <= 64'h0000_0000_0000_0000;
+		cvalid_i <= 0;
+		cdat_i <= 64'd0;
 
 		test_bootstrap();
 		test_op_i();
@@ -1350,26 +1340,6 @@ module PolarisCPU_tb();
 		test_csrrw();
 		test_csrrx();
 		$display("@I Done."); $stop;
-	end
-endmodule
-
-module myMScratch(
-	input	[11:0]	cadr_i,
-	output		cvalid_o,
-	output	[63:0]	cdat_o,
-	input	[63:0]	cdat_i,
-	input		coe_i,
-	input		cwe_i,
-	input		clk_i
-);
-	reg	[63:0]	register;
-	wire	[63:0]	mux;
-
-	assign cvalid_o = cadr_i == 12'h340;
-	assign cdat_o = cvalid_o ? register : 0;
-	assign mux = (cvalid_o & cwe_i) ? cdat_i : register;
-	always @(posedge clk_i) begin
-		register <= mux;
 	end
 endmodule
 
