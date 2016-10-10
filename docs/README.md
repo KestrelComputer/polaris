@@ -32,6 +32,8 @@ the core is designed to interface with minimal effort to Wishbone interconnects.
 * Separate C-bus supports application-specific CSRs.
 * 8, 16, 32, and 64-bit signed and unsigned memory accessors.
 * 64-bit internal architecture.
+* 31 general purpose registers (X1-X31).  X0 is hardwired to zero.
+* 18 Core-Specific Registers (CSRs).
 * Most instructions complete within 4 clock cycles.
 * Machine-mode only design for minimum learning curve.
 * 25MHz clock supports between 4 and 6 MIPS throughput, depending on instruction mix.

@@ -10,13 +10,13 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="210mm"
-   height="297mm"
-   viewBox="0 0 744.09448 1052.3622"
+   width="189.20618mm"
+   height="199.13828mm"
+   viewBox="0 0 670.41558 705.60806"
    id="svg2"
    version="1.1"
    inkscape:version="0.91 r13725"
-   sodipodi:docname="drawing.svg">
+   sodipodi:docname="block-diagram.svg">
   <defs
      id="defs4">
     <marker
@@ -821,9 +821,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="3.7211618"
-     inkscape:cx="145.77813"
-     inkscape:cy="699.37471"
+     inkscape:zoom="1.1127619"
+     inkscape:cx="329.98408"
+     inkscape:cy="265.22213"
      inkscape:document-units="px"
      inkscape:current-layer="layer2"
      showgrid="true"
@@ -836,10 +836,16 @@
      inkscape:window-height="776"
      inkscape:window-x="0"
      inkscape:window-y="24"
-     inkscape:window-maximized="1">
+     inkscape:window-maximized="1"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0">
     <inkscape:grid
        type="xygrid"
-       id="grid4684" />
+       id="grid4684"
+       originx="-42.063163"
+       originy="-326.01916" />
   </sodipodi:namedview>
   <metadata
      id="metadata7">
@@ -849,7 +855,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -857,7 +863,7 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(0,-3.464567e-6)">
+     transform="translate(-42.063164,-20.734993)">
     <rect
        style="opacity:1;fill:none;fill-opacity:1;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
        id="rect4754-92-6"
@@ -1404,7 +1410,7 @@
        id="path68597"
        inkscape:connector-curvature="0" />
     <path
-       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:1,4;stroke-dashoffset:0"
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:1, 4;stroke-dashoffset:0;stroke-opacity:1"
        d="m 645,52.362186 0,45"
        id="path68929"
        inkscape:connector-curvature="0" />
@@ -1436,7 +1442,7 @@
      inkscape:groupmode="layer"
      id="layer2"
      inkscape:label="Layer 2"
-     transform="translate(0,308.26772)">
+     transform="translate(-42.063164,287.53273)">
     <flowRoot
        xml:space="preserve"
        id="flowRoot4815-7"
