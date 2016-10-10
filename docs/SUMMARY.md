@@ -1,4 +1,5 @@
 # Summary
 
-* [Features](README.md)
+* [Introduction](README.md)
+* [Block Diagram](block-diagram.md)
 
