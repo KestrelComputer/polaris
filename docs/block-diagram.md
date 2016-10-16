@@ -12,20 +12,6 @@ is responsible for interpreting the current instruction
 and recognizing to external CPU events.
 Control signals eminating from the *State Decode* unit are elided for clarity.
 
-## I Port
-
-The processor uses the **I Port** to fetch new instructions to execute.
-
-## D Port
-
-The processor uses the **D Port** to fetch or store data to memory.
-Note that the memory space accessed on this port need not be the same
-as that of the I port.
-
-## C Port
-
-This port allows the processor access to application-specific CSRs.
-
 ## Harvard vs Von Neumann Configurations
 
 If the I port accesses its own memory,
