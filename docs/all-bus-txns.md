@@ -237,3 +237,7 @@ they are as follows:
 5.  Data store cycle, without wait states.
 6.  A CSR read-modify-write cycle.
 
+Notes:
+1.  The initial `iadr_o` value will be $FFFFFFFFFFFFFF00 after reset.
+2.  The CSR address will always reflect the upper 12 bits of the currently executing instruction.
+
