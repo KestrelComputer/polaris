@@ -286,3 +286,5 @@ and will raise a fault.
 However, it's possible an external bridge can support unaligned memory accesses
 and allow instructions to appear on non-aligned boundaries.
 
+When `reset_i` is asserted, this register is set to $FFFFFFFFFFFFFF00.
+
