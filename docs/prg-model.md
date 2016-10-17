@@ -128,9 +128,9 @@ The KCP53000 presently does not support an external interrupt pin; thus, this re
 
 |Bits|R/W|Value|Description|
 |:--:|:-:|:---:|:----------|
-|63:0|R/W|$FFFFFFFFFFFFFE00|This register points to the procedure responsible for handling both traps and interrupts.  This procedure **must** return with the MRET instruction at some point.|
+|63:0|R/W|$FFFFFFFFFFFFFE00|Pointer to trap handler.|
 
-Bits 1:0 should be held zero, to ensure the procedure is properly aligned.
+This register points to the procedure responsible for handling both traps and interrupts.  This procedure **must** return with the MRET instruction at some point.  Bits 1:0 should be held zero, to ensure the procedure is properly aligned.
 
 ### mscratch ($340)
 
@@ -276,7 +276,7 @@ This is an up-counter that increments every time the CPU fetches an instruction.
 ## Program Counter
 
 The program counter points to the instruction to be fetched next.
-Although all 32-bits of the program counter are implemented,
+Although all 64-bits of the program counter are implemented,
 it should always be loaded so that bits 0 and 1 are clear
 (e.g., it always refers to an aligned 32-bit word in memory).
 If this is not the case,
