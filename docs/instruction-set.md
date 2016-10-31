@@ -303,6 +303,39 @@ Thus, bits 63:32 will always equal bit 31 of the result.
 |:---:|:---:|:---:|:---:|:--:|:-:|
 |*disp[11:5]*|*rs2*|*rs1*|*fn3*|*disp[4:0]*|0100011|
 
+    displacement = sx({disp[11:5], disp[4:0]});
+    address = Xrs1 + displacement;
+    MEMORY[address] = Xrs2;
+
+This instruction is used to store bytes, half-words, words, or double-words into memory,
+according to the following table:
+
+|fn3|size|mnemonic|
+|:-:|:-:|:-:|
+|000|Byte|SB|
+|001|Half-word|SH|
+|010|Word|SW|
+|011|Double-word|SD|
+|100|undefined||
+|101|undefined||
+|110|undefined||
+|111|undefined||
+
+Note that this CPU does *not* support misaligned memory transfers on its own without external hardware support.
+When equipped with a simple memory bridge,
+attempting to store a half-word from an odd address,
+or a word from an address not divisible by 4,
+or a double-word from an address not divisible by 8
+*may* result in a store/AMO address alignment exception.
+Bridges which do not detect misalignments may take one of two other behaviors;
+either they'll simply *ignore* the least significant bits of the effective address,
+or they'll properly support misaligned accesses at the expense of a slight runtime performance degradation.
+If the former case,
+then the effective address is essentially bitwise-ANDed with -2, -4, or -8 prior to transferring data.
+
+Observe that no distinction is made between signed and unsigned quantities,
+as only the appropriate number of bits of memory are affected by the store.
+
 ## SYSTEM
 
 ### CSRRW, CSRRS, CSRRC, CSRRWI, CSRRSI, CSRRCI
@@ -310,6 +343,90 @@ Thus, bits 63:32 will always equal bit 31 of the result.
 |31:20|19:15|14:12|11:7|6:0|
 |:---:|:---:|:---:|:--:|:-:|
 |*csr[11:0]*|*rs1*|*fn3*|*rd*|1110011|
+
+    if(fn3[2] == 0)
+        src = Xrs1
+    else
+        src = zx(rs1)
+    old = CSR[csr[11:0]];
+    if(rd != 0) {
+        Xrd = old;
+        trigger_read_actions;
+    }
+    switch(fn3[1:0]) {
+        case 1: new = src;
+        case 2: new = old | src;
+        case 3: new = old & ~src;
+    }
+    if(rs1 != 0) {
+        CSR[csr[11:0]] = new;
+        trigger_write_actions;
+    }
+
+These instructions allow access to special registers unique to the model of processor your software is running on.
+The CSR acronym variously can take on several expansions:
+Chip Specific Register, Core Specific Register, or Configuration Specific Register,
+depending on the documentation source.
+The KCP53000 documentation prefers Core Specific Register,
+since KCP53000 family devices need not take on a physical chip form.
+
+CSRs are identified by a 12-bit number.
+The RISC-V instruction set does not interpret this field;
+all 12 bits are opaque as far as these instructions are concerned.
+However, when defining new CSRs, conventions on how the bits are used do exist.
+The following table briefly summarizes the established conventions:
+
+|Bit(s)|Purpose|
+|:----:|:------|
+|11:10 |Register family.  Up to four families may exist, with family 3 conventionally reserved for read-only registers.  Family 0, 1, and 2 may conventionally offer read-write access to registers.|
+|9:8   |Required minimum privilege level, with 3 being machine-mode, and 0 being user-mode.  Note that KCP53000 only implements machine-mode, and so has unabated access to all CSRs.|
+|7:0   |Unique address.|
+
+CSRs may sometimes also be used as a distinct I/O register space as well.
+The KCP53000 supports this mode of use through its C port.
+Note that, where possible, memory-mapped I/O (MMIO) is generally preferred.
+
+Please refer to the
+[Draft Privileged ISA Specification v1.9](https://www.riscv.org/specifications/privileged-isa/)
+for more details.
+
+**NOTE** Access to CSRs which are not supported causes an illegal instruction trap.
+This gives machine-mode software an opportunity to emulate the presence of the addressed CSR if required.
+
+Bit 2 of the `fn3` field determines whether or not the source operand is the contents of a register (0),
+or a 5-bit, *zero*-extended immediate value (1).
+
+Bits 1:0 of the `fn3` field determines the kind of manipulation to perform on the CSR:
+
+|1:0|Purpose|Mnemonics|
+|:-:|:------|:-------:|
+|01|Overwrite|CSRRW, CSRRWI|
+|10|Bit Set|CSRRS, CSRRSI|
+|11|Bit Clear|CSRRC, CSRRCI|
+
+Note that 00 is reserved for other instructions.
+
+Since CSRs may be tied to I/O devices,
+reading and writing may cause transport-triggered effects.
+To avoid effects caused by *reading* a register,
+you should specify `X0` as your destination register.
+Since `X0` will always contain the value 0,
+this register is a hint to the instruction that you don't care about the CSR's current value.
+To avoid effects caused by *writing* a register,
+you should specify `X0` as your source register Xrs1, or specify 0 as your immediate constant.
+
+**NOTE:** This does not mean that the *value* of zero is interpreted to mean no-read or no-write.
+To use a *value* of 0 in an operation (say, you want to write 0 into `mscratch`),
+you would need to load it into a register first, like so:
+
+    addi  t0, x0, 0          ; Load T0 with the value of 0.
+    csrrw x0, t0, mscratch   ; Writes 0 into mscratch.
+
+Attempting to do this the obvious way:
+
+    csrrw x0, x0, mscratch   ; whoops!
+
+will not work, because `X0`, being the source register specified, will prevent mscratch from being written to.
 
 ### EBREAK
 
