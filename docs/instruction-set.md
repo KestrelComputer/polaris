@@ -398,13 +398,12 @@ or a 5-bit, *zero*-extended immediate value (1).
 
 Bits 1:0 of the `fn3` field determines the kind of manipulation to perform on the CSR:
 
-|1:0|Purpose|Mnemonics|
+|fn3[1:0]|Purpose|Mnemonics|
 |:-:|:------|:-------:|
+|00|Unused|This combination encodes other instructions, such as ECALL.|
 |01|Overwrite|CSRRW, CSRRWI|
 |10|Bit Set|CSRRS, CSRRSI|
 |11|Bit Clear|CSRRC, CSRRCI|
-
-Note that 00 is reserved for other instructions.
 
 Since CSRs may be tied to I/O devices,
 reading and writing may cause transport-triggered effects.
@@ -434,11 +433,31 @@ will not work, because `X0`, being the source register specified, will prevent m
 |:---:|:---:|:---:|:--:|:-:|
 |0000_0000_0001|00000|000|00000|1110011|
 
+    mstatus.mpie = mstatus.mie
+    mstatus.mie = 0
+    mepc = IA
+    mcause.cause = 3
+    mcause.irq = 0
+    PC = mtvec
+
+This instruction forces a breakpoint trap.
+The semantics of what this means is dependent on the system firmware installed on your computer.
+
 ### ECALL
 
 |31:20|19:15|14:12|11:7|6:0|
 |:---:|:---:|:---:|:--:|:-:|
 |0000_0000_0000|00000|000|00000|1110011|
+
+    mstatus.mpie = mstatus.mie
+    mstatus.mie = 0
+    mepc = IA
+    mcause.cause = 2
+    mcause.irq = 0
+    PC = mtvec
+
+This instruction invokes a system call.
+The semantics of what this means is dependent on the system firmware installed on your computer.
 
 ### MRET
 
@@ -446,9 +465,36 @@ will not work, because `X0`, being the source register specified, will prevent m
 |:---:|:---:|:---:|:--:|:-:|
 |0011_0000_0010|00000|000|00000|1110011|
 
+    mstatus.mie = mstatus.mpie
+    mstatus.mpie = 1
+    PC = mepc
+
+This instruction returns from a system call, breakpoint, illegal instruction, or other form of trap.
+This can also be used to return from hardware interrupts as well.
+
 ### WFI
 
 |31:20|19:15|14:12|11:7|6:0|
 |:---:|:---:|:---:|:--:|:-:|
 |0001_0000_0101|00000|000|00000|1110011|
+
+    while(mip == 0)
+        /* do nothing. */ ;
+
+The purpose of this instruction is to *wait* for an interrupt to occur.
+If interrupts are enabled,
+the CPU will process the interrupt trap as you'd expect when not executing this instruction.
+Execution resumes with the next instruction after an interrupt occurs and after any traps have been processed.
+
+**NOTE:** Disabling interrupts via `mstatus.mie` bit and/or by clearing all bits in `mie`
+is not sufficient to deadlock the processor.
+This instruction waits for `mip` to become non-zero.
+However, if you have *external* interrupt enables which are turned off,
+the processor will never know of these interrupt sources.
+Thus, when using this instruction, make sure *at least* external interrupt enables are properly configured.
+Otherwise, you run the risk of deadlocking the processor.
+
+This instruction currently does nothing on the KCP53000 core (e.g., it treats `mip` as though it were non-zero all the time).
+However, do not mistake this for a no-operation instruction.
+Future processor revisions will implement intended behavior.
 
