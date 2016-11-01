@@ -5,3 +5,4 @@ implementing the RISC-V 64-bit integer and supervisor
 instruction sets.
 Polaris only supports the machine-mode privilege level.
 
+For more information, consult the [datasheet](docs/SUMMARY.md)
