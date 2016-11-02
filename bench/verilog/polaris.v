@@ -1376,6 +1376,55 @@ module PolarisCPU_tb();
 		tick(54);
 		assert_istb(1);
 		assert_iadr(64'h0000_0000_0000_0008);
+
+		//	CSRRW	X1, X0, MIE	; Boot-time state of MIE should be 0.
+		idat_i <= 32'b0011_0000_0100_00000_001_00001_1110011;
+		tick(60);
+		tick(61);
+		tick(62);
+		assert_istb(1);
+
+		//	ADDI	X2, X0, $800	; don't care about high bits; they're ignored by MIE register.
+		idat_i <= 32'b100000000000_00000_000_00010_0011011;
+		tick(70);
+		tick(71);
+		tick(72);
+		tick(73);
+		assert_istb(1);
+
+		//	CSRRW	X0, X2, MIE	; locally enable the external IRQ interrupt.
+		idat_i <= 32'b0011_0000_0100_00010_001_00000_1110011;
+		tick(80);
+		tick(81);
+		tick(82);
+		assert_istb(1);
+
+		//	CSRRW	X3, X0, MIE	; Double-check.
+		idat_i <= 32'b0011_0000_0100_00000_001_00011_1110011;
+		tick(90);
+		tick(91);
+		tick(92);
+		assert_istb(1);
+
+		//	XOR	X1, X1, X3
+		idat_i <= 32'b0000000_00011_00001_100_00001_0110011;
+		tick(100);
+		tick(101);
+		tick(102);
+		tick(103);
+		tick(104);
+		assert_istb(1);
+
+		//	JALR	X0, 0(X1)	; Should jump to address $800.
+		idat_i <= 32'b000000000000_00001_000_00000_1100111;
+		tick(110);
+		tick(111);
+		tick(112);
+		tick(113);
+		tick(114);
+		assert_istb(1);
+		assert_iadr(64'h0000_0000_0000_0800);
+
 	end
 	endtask
 
