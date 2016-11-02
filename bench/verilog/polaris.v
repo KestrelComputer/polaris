@@ -1314,6 +1314,71 @@ module PolarisCPU_tb();
 	end
 	endtask
 
+	task test_irq;
+	begin
+		scenario(11);
+
+		reset_i <= 1;
+		tick(1);
+		assert_istb(0);
+		assert_dsiz(2'b00);
+		assert_dsigned(0);
+		assert_dwe(0);
+
+		reset_i <= 0;
+		tick(2);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
+		assert_istb(1);
+		assert_trap(0);
+		assert_mie(0);
+		assert_mpie(1);
+		iack_i <= 1;
+
+		// Test that the MIE bit in MSTATUS works as expected.
+		//	CSRRW	X1, X0, MSTATUS
+		idat_i <= 32'b0011_0000_0000_00000_001_00001_1110011;
+		tick(10);
+		tick(11);
+		tick(12);
+		assert_istb(1);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF04);
+
+		//	CSRRSI	X0, MSTATUS, 8		; Enable interrupts globally (MIE bit).
+		idat_i <= 32'b0011_0000_0000_01000_110_00000_1110011;
+		tick(20);
+		tick(21);
+		tick(22);
+		tick(23);
+		assert_istb(1);
+
+		//	CSRRW	X2, X0, MSTATUS
+		idat_i <= 32'b0011_0000_0000_00000_001_00010_1110011;
+		tick(30);
+		tick(31);
+		tick(32);
+		assert_istb(1);
+
+		//	XOR	X1, X1, X2
+		idat_i <= 32'b0000000_00010_00001_100_00001_0110011;
+		tick(40);
+		tick(41);
+		tick(42);
+		tick(43);
+		tick(44);
+		assert_istb(1);
+
+		//	JALR	X0, 0(X1) ; should jump to address 8
+		idat_i <= 32'b000000000000_00001_000_00000_1100111;
+		tick(50);
+		tick(51);
+		tick(52);
+		tick(53);
+		tick(54);
+		assert_istb(1);
+		assert_iadr(64'h0000_0000_0000_0008);
+	end
+	endtask
+
 	initial begin
 		clk_i <= 0;
 		reset_i <= 0;
@@ -1335,6 +1400,7 @@ module PolarisCPU_tb();
 		test_e();
 		test_csrrw();
 		test_csrrx();
+		test_irq();
 		$display("@I Done."); $stop;
 	end
 endmodule
