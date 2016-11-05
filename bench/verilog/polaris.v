@@ -1470,7 +1470,8 @@ module PolarisCPU_tb();
 
 		// Now to test interrupt detection.
 		irq_i <= 1;
-		tick(120);	// Take the IRQ here.  Single cycle, baby!
+		idat_i <= 32'b000000000001_00000_000_00000_1110011;
+		tick(120);	// Take the IRQ here; priority over EBREAK.  Single cycle, baby!
 		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_FFFF_FE00);
 		//	CSRRW X1, X0, MCAUSE
