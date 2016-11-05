@@ -8,3 +8,11 @@ A register that typically serves one of two functions: hold configuration settin
 
 See Core Specific Register.
 
+## IRQ
+
+See Interrupt Request.
+
+## Interrupt Request
+
+An external signal controlled by peripherals to gain the attention of the processor.
+

@@ -36,6 +36,7 @@ the core is designed to interface with minimal effort to Wishbone interconnects.
 * 18 Core-Specific Registers (CSRs).
 * Most instructions complete within 4 clock cycles.
 * Machine-mode only design for minimum learning curve.
+* External interrupt support.
 * 25MHz clock supports between 4 and 6 MIPS throughput, depending on instruction mix.
 * RV64IS compatible.
 * Conforms to RISC-V User-Level ISA Specification v2.1.

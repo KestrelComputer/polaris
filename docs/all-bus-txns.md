@@ -242,3 +242,17 @@ Notes:
 1.  The initial `iadr_o` value will be $FFFFFFFFFFFFFF00 after reset.
 2.  The CSR address will always reflect the upper 12 bits of the currently executing instruction.
 
+## Interrupts
+
+To register an external interrupt,
+assert the `irq_i` signal.
+This signal may be asserted at any time.
+Interrupts are sampled only during instruction fetch, however.
+
+Bringing `irq_i` high will cause bit 11 of the `MIP` CSR to be set.
+If bit 11 (MEIE bit) of `MIE` is also set,
+*and* if bit 3 (MIE bit) of `MSTATUS` is set,
+then the processor will take the interrupt.
+The `MEPC` register will be set to the interrupted instruction's address
+so that the CPU can execute it after the interrupt has been processed.
+
