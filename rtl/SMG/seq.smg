@@ -11,6 +11,7 @@
            [ccr "[7:0]"]
            trap
            csrok_i
+           take_irq
           ]
   &output [ft0_o
            pc_mbvec
@@ -78,6 +79,8 @@
            cdat_alu
            alua_cdat
            alub_imm5
+           mepc_pc
+           mcause_irq_o
           ]
   &wire   [isOpI
            isOpR
@@ -112,14 +115,20 @@
 
  \\ Handle instruction fetch.
 
- [on [~rst ft0 ~trap_o ~iack_i]         iadr_pc istb_o ft0_o]
- [on [~rst ft0 ~trap_o iack_i]          iadr_pc istb_o pc_pcPlus4 ia_pc ir_idat xt0_o]
+ [on [~rst ft0 ~take_irq ~trap_o ~iack_i]         iadr_pc istb_o ft0_o]
+ [on [~rst ft0 ~take_irq ~trap_o iack_i]          iadr_pc istb_o pc_pcPlus4 ia_pc ir_idat xt0_o]
 
  \\ Handle a trap.  We save the IA and reload it with the current value of MTVEC,
  \\ preserve the current interrupt enable flag, and clear it.  Then we resume
  \\ instruction execution.
 
- [on [~rst trap]                        mepc_ia pc_mtvec  mpie_mie mie_0  ft0_o]
+ [on [~rst ~take_irq trap]                        mepc_ia pc_mtvec  mpie_mie mie_0  ft0_o]
+
+ \\ Handle external interrupts.  The CSR module exposes a signal, take_irq, which if asserted
+ \\ means we should take an interrupt.  Note that the CSR unit handles interrupt masking for us.
+ \\ NOTE: External interrupts ALWAYS take priority over other kinds of traps.
+ \\ NOTE: MEPC is loaded with PC and not with IA, because we haven't executed the addressed insn yet.
+ [on [~rst ft0 take_irq]                          mepc_pc pc_mtvec mpie_mie mie_0 mcause_11 mcause_irq_o ft0_o]
 
  \\ Are we jammed?  If we're not executing an instruction,
  \\ AND we're not fetching an instruction, then the CPU will

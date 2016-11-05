@@ -33,6 +33,8 @@ module PolarisCPU_tb();
 	wire	[63:0]	mepc_o;
 	wire		mpie_o, mie_o;
 
+	reg		irq_i;
+
 	task scenario;		// Pointless task helps with searching in text editor.
 	input [15:0] story;
 	begin
@@ -244,6 +246,8 @@ module PolarisCPU_tb();
 		.mepc_o(mepc_o),
 		.mie_o(mie_o),
 		.mpie_o(mpie_o),
+
+		.irq_i(irq_i),
 
 		// I MASTER
 
@@ -1314,6 +1318,187 @@ module PolarisCPU_tb();
 	end
 	endtask
 
+	task test_irq;
+	begin
+		scenario(11);
+
+		reset_i <= 1;
+		tick(1);
+		assert_istb(0);
+		assert_dsiz(2'b00);
+		assert_dsigned(0);
+		assert_dwe(0);
+
+		reset_i <= 0;
+		tick(2);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FF00);
+		assert_istb(1);
+		assert_trap(0);
+		assert_mie(0);
+		assert_mpie(1);
+		iack_i <= 1;
+
+		// Interrupts are globally and locally disabled, so
+		// we can twiddle the irq_i input with impunity.
+		// That lets us verify signal routing.
+		//	CSRRW	X1, X0, MIP
+		idat_i <= 32'b0011_0100_0100_00000_001_00001_1110011;
+		tick(1000);
+		tick(1001);
+		tick(1002);
+		assert_istb(1);
+
+		//	JALR	X0, 0(X1)	(address should be 0)
+		idat_i <= 32'b000000000000_00001_000_00000_1100111;
+		tick(1010);
+		tick(1011);
+		tick(1012);
+		tick(1013);
+		tick(1014);
+		assert_istb(1);
+		assert_iadr(64'h0000_0000_0000_0000);
+
+		//	CSRRW	X1, X0, MIP
+		irq_i <= 1;
+		idat_i <= 32'b0011_0100_0100_00000_001_00001_1110011;
+		tick(1000);
+		tick(1001);
+		tick(1002);
+		assert_istb(1);
+
+		//	JALR	X0, 0(X1)	(address should be $800)
+		idat_i <= 32'b000000000000_00001_000_00000_1100111;
+		tick(1010);
+		tick(1011);
+		tick(1012);
+		tick(1013);
+		tick(1014);
+		assert_istb(1);
+		assert_iadr(64'h0000_0000_0000_0800);
+
+		// Test that the MIE bit in MSTATUS works as expected.
+		// Make sure irq_i is negated so we don't accidentally trigger an IRQ.  :D
+		//	CSRRW	X1, X0, MSTATUS
+		irq_i <= 0;
+		idat_i <= 32'b0011_0000_0000_00000_001_00001_1110011;
+		tick(10);
+		tick(11);
+		tick(12);
+		assert_istb(1);
+
+		//	CSRRSI	X0, MSTATUS, 8		; Enable interrupts globally (MIE bit).
+		idat_i <= 32'b0011_0000_0000_01000_110_00000_1110011;
+		tick(20);
+		tick(21);
+		tick(22);
+		tick(23);
+		assert_istb(1);
+
+		//	CSRRW	X2, X0, MSTATUS
+		idat_i <= 32'b0011_0000_0000_00000_001_00010_1110011;
+		tick(30);
+		tick(31);
+		tick(32);
+		assert_istb(1);
+
+		//	XOR	X1, X1, X2
+		idat_i <= 32'b0000000_00010_00001_100_00001_0110011;
+		tick(40);
+		tick(41);
+		tick(42);
+		tick(43);
+		tick(44);
+		assert_istb(1);
+
+		//	JALR	X0, 0(X1) ; should jump to address 8
+		idat_i <= 32'b000000000000_00001_000_00000_1100111;
+		tick(50);
+		tick(51);
+		tick(52);
+		tick(53);
+		tick(54);
+		assert_istb(1);
+		assert_iadr(64'h0000_0000_0000_0008);
+
+		//	CSRRW	X1, X0, MIE	; Boot-time state of MIE should be 0.
+		idat_i <= 32'b0011_0000_0100_00000_001_00001_1110011;
+		tick(60);
+		tick(61);
+		tick(62);
+		assert_istb(1);
+
+		//	ADDI	X2, X0, $800	; don't care about high bits; they're ignored by MIE register.
+		idat_i <= 32'b100000000000_00000_000_00010_0011011;
+		tick(70);
+		tick(71);
+		tick(72);
+		tick(73);
+		assert_istb(1);
+
+		//	CSRRW	X0, X2, MIE	; locally enable the external IRQ interrupt.
+		idat_i <= 32'b0011_0000_0100_00010_001_00000_1110011;
+		tick(80);
+		tick(81);
+		tick(82);
+		assert_istb(1);
+
+		//	CSRRW	X3, X0, MIE	; Double-check.
+		idat_i <= 32'b0011_0000_0100_00000_001_00011_1110011;
+		tick(90);
+		tick(91);
+		tick(92);
+		assert_istb(1);
+
+		//	XOR	X1, X1, X3
+		idat_i <= 32'b0000000_00011_00001_100_00001_0110011;
+		tick(100);
+		tick(101);
+		tick(102);
+		tick(103);
+		tick(104);
+		assert_istb(1);
+
+		//	JALR	X0, 0(X1)	; Should jump to address $800.
+		idat_i <= 32'b000000000000_00001_000_00000_1100111;
+		tick(110);
+		tick(111);
+		tick(112);
+		tick(113);
+		tick(114);
+		assert_istb(1);
+		assert_iadr(64'h0000_0000_0000_0800);
+
+		// Now to test interrupt detection.
+		irq_i <= 1;
+		idat_i <= 32'b000000000001_00000_000_00000_1110011;
+		tick(120);	// Take the IRQ here; priority over EBREAK.  Single cycle, baby!
+		assert_istb(1);
+		assert_iadr(64'hFFFF_FFFF_FFFF_FE00);
+		//	CSRRW X1, X0, MCAUSE
+		idat_i <= 32'b0011_0100_0010_00000_001_00001_1110011;
+		tick(121);
+		tick(122);
+		tick(123);
+		assert_istb(1);
+		//	JALR X0, 0(X1)
+		idat_i <= 32'b000000000000_00001_000_00000_1100111;
+		tick(130);
+		tick(131);
+		tick(132);
+		tick(133);
+		tick(134);
+		assert_istb(1);
+		assert_iadr(64'h8000_0000_0000_000B);
+		//	MRET
+		irq_i <= 0;	// software does something to kill this signal earlier, somehow.
+		idat_i <= 32'b0011_0000_0010_00000_000_00000_1110011;
+		tick(140);
+		tick(141);
+		assert_istb(1);
+		assert_iadr(64'h0000_0000_0000_0800);
+	end
+	endtask
+
 	initial begin
 		clk_i <= 0;
 		reset_i <= 0;
@@ -1323,6 +1508,7 @@ module PolarisCPU_tb();
 		ddat_i <= 64'h0000_0000_0000_0000;
 		cvalid_i <= 0;
 		cdat_i <= 64'd0;
+		irq_i <= 0;
 
 		test_bootstrap();
 		test_op_i();
@@ -1335,6 +1521,7 @@ module PolarisCPU_tb();
 		test_e();
 		test_csrrw();
 		test_csrrx();
+		test_irq();
 		$display("@I Done."); $stop;
 	end
 endmodule

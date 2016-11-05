@@ -120,9 +120,12 @@ The KCP53000 only supports machine-mode, so this register is superfluous.  It is
 
 |Bits|R/W|Value|Description|
 |:--:|:-:|:---:|:----------|
-|63:0|R/O|0|Bitmap indicating which interrupts are *enabled*.|
+|63:12|R/O|0|Reserved for future use.|
+|11   |R/W|0|External interrupt enable.|
+|10:0 |R/O|0|Reserved for future use.|
 
-The KCP53000 presently does not support an external interrupt pin; thus, this register is not yet implemented, and is hardwired to zero (no interrupts enabled).
+The KCP53000 only supports machine-mode;
+thus, only a single interrupt enable flag is available through this register.
 
 ### mtvec ($305)
 
@@ -244,9 +247,16 @@ Therefore, for future compatibility,
 
 |Bits|R/W|Value|Description|
 |:--:|:-:|:---:|:----------|
-|63:0|R/O|0|Bitmap indicating which interrupts are *pending*.|
+|63:12|R/O|0|Reserved for future use.|
+|11   |R/O|0|External interrupt pending.|
+|10:0 |R/O|0|Reserved for future use.|
 
-The KCP53000 presently does not support an external interrupt pin; thus, this register is not yet implemented, and is hardwired to zero (no interrupts can be pending).
+The KCP53000 provides a single external interrupt pin;
+the state of this pin is visible through this register.
+
+Note that this pin is not registered.
+If `irq_i` is brought low,
+then bit 11 of this register will return to 0.
 
 ### mcycle ($F00)
 
