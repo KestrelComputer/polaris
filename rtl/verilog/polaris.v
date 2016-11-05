@@ -12,6 +12,8 @@ module PolarisCPU(
 	output			mpie_o,
 	output			mie_o,
 
+	input			irq_i,
+
 	// I MASTER
 
 	input			iack_i,
@@ -120,6 +122,9 @@ module PolarisCPU(
 	wire		icvalid_i;
 	wire	[63:0]	icdat_i;
 	wire	[63:0]	mtvec_i;
+	wire		take_irq;
+	wire		mepc_pc;
+	wire		mcause_irq_o;
 
 	wire		cvalid = icvalid_i | cvalid_i;
 	wire	[63:0]	ucdat_i = icdat_i | cdat_i;
@@ -281,6 +286,9 @@ module PolarisCPU(
 		.cdat_alu(cdat_alu),
 		.alub_imm5(alub_imm5),
 		.alua_cdat(alua_cdat),
+		.take_irq(take_irq),
+		.mepc_pc(mepc_pc),
+		.mcause_irq_o(mcause_irq_o),
 		.rst(rst)
 	);
 
@@ -330,8 +338,13 @@ module PolarisCPU(
 		.mcause_3(mcause_3),
 		.mcause_11(mcause_11),
 		.mepc_ia(mepc_ia),
+		.mepc_pc(mepc_pc),
 		.ia_i(ia),
+		.pc_i(pc),
 		.cause_o(cause_o),
+		.irq_i(irq_i),
+		.take_irq_o(take_irq),
+		.mcause_irq_i(mcause_irq_o),
 
 		.reset_i(reset_i),
 		.clk_i(clk_i)
@@ -355,6 +368,7 @@ module CSRs(
 	output	[63:0]	mepc_o,
 	output	[3:0]	cause_o,
 	input	[63:0]	ia_i,
+	input	[63:0]	pc_i,
 	output		mie_o,
 	output		mpie_o,
 	input		ft0_i,
@@ -362,7 +376,11 @@ module CSRs(
 	input		mcause_2,
 	input		mcause_3,
 	input		mcause_11,
+	input		mcause_irq_i,
 	input		mepc_ia,
+	input		mepc_pc,
+	input		irq_i,
+	output		take_irq_o,
 
 	input		reset_i,
 	input		clk_i
@@ -371,17 +389,18 @@ module CSRs(
 	reg	[63:0]	mtvec;
 	reg	[63:0]	mscratch;
 	reg	[63:0]	mepc;
-	reg	[3:0]	mcause;
+	reg	[4:0]	mcause;		// Compacted; bit 4 here maps to bit 63 in software
 	reg	[63:0]	mbadaddr;
 	reg	[63:0]	mcycle;
 	reg	[63:0]	mtime;
 	reg	[63:0]	minstret;
+	reg		irqEn;
 
 	wire		mpie_mux, mie_mux;
 	wire	[63:0]	mtvec_mux;
 	wire	[63:0]	mscratch_mux;
 	wire	[63:0]	mepc_mux;
-	wire	[3:0]	mcause_mux;
+	wire	[4:0]	mcause_mux;
 	wire	[63:0]	mbadaddr_mux;
 	wire	[63:0]	mcycle_mux;
 	wire	[63:0]	mtime_mux;
@@ -432,28 +451,37 @@ module CSRs(
 		2'b00,		// XS
 		2'b00,		// FS
 		2'b11,		// MPP
-		2'b11,		// HPP
+		2'b10,		// HPP
 		1'b1,		// SPP
 		mpie, 3'b000,
 		mie, 3'b000
 	};
 	wire	[63:0]	csrd_medeleg = 64'd0;
 	wire	[63:0]	csrd_mideleg = 64'd0;
-	wire	[63:0]	csrd_mie = 64'd0;	// for now
+	wire	[63:0]	csrd_mie = {
+		52'd0,
+		irqEn,
+		11'd0
+	};
 	wire	[63:0]	csrd_mtvec = mtvec;
 	wire	[63:0]	csrd_mscratch = mscratch;
 	wire	[63:0]	csrd_mepc = mepc;
 	wire	[63:0]	csrd_mcause = {
-		1'b0,		// isIrq
+		mcause[4],
 		59'd0,		// reserved
-		mcause
+		mcause[3:0]
 	};
 	wire	[63:0]	csrd_mbadaddr = mbadaddr;
-	wire	[63:0]	csrd_mip = 64'd0;	// for now
+	wire	[63:0]	csrd_mip = {
+		52'd0,
+		irq_i,
+		11'd0
+	};
 	wire	[63:0]	csrd_mcycle = mcycle;
 	wire	[63:0]	csrd_mtime = mtime;
 	wire	[63:0]	csrd_minstret = minstret;
 
+	assign take_irq_o = mie & irqEn & irq_i;
 	assign cdat_o =
 		(csrv_misa ? csrd_misa : 0) |
 		(csrv_mvendorid ? csrd_mvendorid : 0) |
@@ -473,6 +501,12 @@ module CSRs(
 		(csrv_mcycle ? csrd_mcycle : 0) |
 		(csrv_mtime ? csrd_mtime : 0) |
 		(csrv_minstret ? csrd_minstret : 0);
+
+	wire irqEn_cdat = csrv_mie & cwe_i;
+	wire irqEn_irqEn = ~|{irqEn_cdat, reset_i};
+	wire irqEn_mux =
+			(irqEn_cdat ? cdat_i[11] : 0) |
+			(irqEn_irqEn ? irqEn : 0);
 
 	wire mstatus_we = csrv_mstatus & cwe_i;
 	wire mie_mie = ~|{mie_0, mie_mpie, mstatus_we};
@@ -502,20 +536,22 @@ module CSRs(
 	assign mscratch_mux = (mscratch_we ? cdat_i : mscratch);
 
 	wire mepc_we = csrv_mepc & cwe_i;
-	wire mepc_mepc = ~|{mepc_we, mepc_ia};
+	wire mepc_mepc = ~|{mepc_we, mepc_ia, mepc_pc};
 	assign mepc_mux =
 			(mepc_we ? cdat_i : 0) |
 			(mepc_ia ? ia_i : 0) |
+			(mepc_pc ? pc_i : 0) |
 			(mepc_mepc ? mepc : 0);
 
 	wire mcause_we = csrv_mcause & cwe_i;
 	wire mcause_mcause = ~|{mcause_2, mcause_3, mcause_11, mcause_we};
 	assign cause_o = mcause_mux;
 	assign mcause_mux =
-			(mcause_we ? cdat_i[3:0] : 0) |
-			(mcause_2 ? 4'd2 : 0) |
-			(mcause_3 ? 4'd3 : 0) |
-			(mcause_11 ? 4'd11 : 0);
+			(mcause_we ? {cdat_i[63], cdat_i[3:0]} : 0) |
+			(mcause_2 ? {mcause_irq_i, 4'd2} : 0) |
+			(mcause_3 ? {mcause_irq_i, 4'd3} : 0) |
+			(mcause_11 ? {mcause_irq_i, 4'd11} : 0) |
+			(mcause_mcause ? mcause : 0);
 
 	wire mbadaddr_we = csrv_mbadaddr & cwe_i;
 	assign mbadaddr_mux = (mbadaddr_we ? cdat_i : mbadaddr);
@@ -535,6 +571,8 @@ module CSRs(
 		mcycle <= mcycle_mux;
 		minstret <= minstret_mux;
 		mtime <= mtime_mux;
+
+		irqEn <= irqEn_mux;
 	end
 endmodule
 
