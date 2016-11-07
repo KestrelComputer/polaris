@@ -43,17 +43,17 @@ module alu(
 	wire [63:0] lshs = lsh_en_i ? lsh1 : 0;
 
 	wire [63:32] sx5 = cflag_i ? {32{inA_i[63]}} : 0;
+	wire [63:0] rsh32 = inB_i[5] ? {sx5, inA_i[63:32]} : inA_i;
 	wire [63:48] sx4 = cflag_i ? {16{rsh32[63]}} : 0;
+	wire [63:0] rsh16 = inB_i[4] ? {sx4, rsh32[63:16]} : rsh32;
 	wire [63:56] sx3 = cflag_i ? {8{rsh16[63]}} : 0;
+	wire [63:0] rsh8  = inB_i[3] ? {sx3, rsh16[63:8]} : rsh16;
 	wire [63:60] sx2 = cflag_i ? {4{rsh8[63]}} : 0;
+	wire [63:0] rsh4  = inB_i[2] ? {sx2, rsh8[63:4]} : rsh8;
 	wire [63:62] sx1 = cflag_i ? {2{rsh4[63]}} : 0;
+	wire [63:0] rsh2  = inB_i[1] ? {sx1, rsh4[63:2]} : rsh4;
 	wire sx0 = cflag_i & rsh2[63];
 
-	wire [63:0] rsh32 = inB_i[5] ? {sx5, inA_i[63:32]} : inA_i;
-	wire [63:0] rsh16 = inB_i[4] ? {sx4, rsh32[63:16]} : rsh32;
-	wire [63:0] rsh8  = inB_i[3] ? {sx3, rsh16[63:8]} : rsh16;
-	wire [63:0] rsh4  = inB_i[2] ? {sx2, rsh8[63:4]} : rsh8;
-	wire [63:0] rsh2  = inB_i[1] ? {sx1, rsh4[63:2]} : rsh4;
 	wire [63:0] rsh1  = inB_i[0] ? {sx0, rsh2[63:1]} : rsh2;
 	wire [63:0] rshs = rsh_en_i ? rsh1 : 0;
 

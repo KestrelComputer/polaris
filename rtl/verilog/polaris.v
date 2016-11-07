@@ -103,7 +103,6 @@ module PolarisCPU(
 	wire		ccr_alu;
 	wire		alub_imm12sb;
 	reg		trap;
-	wire		trap_o;
 	wire		mcause_2, mcause_3, mcause_11;
 	wire		pc_mtvec;
 	reg	[63:0]	mepc;
