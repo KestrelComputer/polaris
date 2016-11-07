@@ -35,7 +35,7 @@ module output_csr(
         // stateful registers.  Since we don't have state,
         // it's a bit redundant in this example.
         wire startBit_mux = write ? cdat_i[11] : 1'b0;
-        wire charByte_mux = write ? cdat_i[10:3] : 8'b0000_0000;
+        wire [7:0] charByte_mux = write ? cdat_i[10:3] : 8'b0000_0000;
         wire stopBit_mux = write ? cdat_i[2] : 1'b0;
         wire exitBit_mux = write ? cdat_i[1] : 1'b0;
         wire failBit_mux = write ? cdat_i[0] : 1'b0;

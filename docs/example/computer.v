@@ -18,15 +18,13 @@ module computer();
 	end
 
 	initial begin
-$dumpfile("wtf.vcd");
-$dumpvars;
+// $dumpfile("wtf.vcd"); $dumpvars;
 		clk <= 0;
 		reset <= 1;
 		wait(clk); wait(~clk);
 		wait(clk); wait(~clk);
 		wait(clk); wait(~clk);
 		reset <= 0;
-$monitor("%d %d %016X %0X", $time, clk, cpu.iadr_o, rom.A);
 	end
 
 	PolarisCPU cpu(
