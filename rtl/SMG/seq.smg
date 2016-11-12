@@ -115,8 +115,9 @@
 
  \\ Handle instruction fetch.
 
- [on [~rst ft0 ~take_irq ~trap_o ~iack_i]         iadr_pc istb_o ft0_o]
- [on [~rst ft0 ~take_irq ~trap_o iack_i]          iadr_pc istb_o pc_pcPlus4 ia_pc ir_idat xt0_o]
+ [on [~rst ft0 ~take_irq ~trap_o]                 iadr_pc istb_o]
+ [on [~rst ft0 ~take_irq ~trap_o ~iack_i]         ft0_o]
+ [on [~rst ft0 ~take_irq ~trap_o iack_i]          pc_pcPlus4 ia_pc ir_idat xt0_o]
 
  \\ Handle a trap.  We save the IA and reload it with the current value of MTVEC,
  \\ preserve the current interrupt enable flag, and clear it.  Then we resume
