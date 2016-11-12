@@ -55,7 +55,6 @@ module output_csr(
         always @(negedge clk_i) begin
                 if((startBit_mux === 1) && (stopBit_mux === 0)) begin
                         $display("%c", charByte_mux);
-			$fflush;
                 end
 
                 if(exitBit_mux === 1) begin
