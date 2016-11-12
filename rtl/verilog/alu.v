@@ -25,7 +25,7 @@ module alu(
 );
 	wire [63:0] b = inB_i ^ ({64{invB_en_i}});
 
-	wire [63:0] sumL = inA_i[62:0] + b[62:0] + cflag_i;
+	wire [63:0] sumL = inA_i[62:0] + b[62:0] + {62'b0, cflag_i};
 	wire c62 = sumL[63];
 	wire [64:63] sumH = inA_i[63] + b[63] + c62;
 	wire [63:0] sums = sum_en_i ? {sumH[63], sumL[62:0]} : 64'd0;
