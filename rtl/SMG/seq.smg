@@ -149,8 +149,8 @@
  [on [["ir[14:12]" 3'b110]]     fn3_is_110]
  [on [["ir[14:12]" 3'b111]]     fn3_is_111]
 
- [on [["ir[6:4]" "7'b001"] ["ir[2:0]" "3'b011"]]        isOpI]
- [on [["ir[6:4]" "7'b011"] ["ir[2:0]" "3'b011"]]        isOpR]
+ [on [["ir[6:4]" "3'b001"] ["ir[2:0]" "3'b011"]]        isOpI]
+ [on [["ir[6:4]" "3'b011"] ["ir[2:0]" "3'b011"]]        isOpR]
 
  [on [~rst xt0 isOpI]           xt1_o ra_ir1]
  [on [~rst xt1 isOpI]           xt2_o alua_rdat alub_imm12i]
