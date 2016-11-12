@@ -82,6 +82,7 @@ module PolarisCPU(
 	wire		invB_en;
 	wire		lsh_en;
 	wire		rsh_en;
+	wire		ltu_en, lts_en;
 	wire	[63:0]	aluResult, aluXResult;
 	wire		cflag_o;
 	wire		vflag_o;
@@ -288,6 +289,8 @@ module PolarisCPU(
 		.take_irq(take_irq),
 		.mepc_pc(mepc_pc),
 		.mcause_irq_o(mcause_irq_o),
+		.ltu_en(ltu_en),
+		.lts_en(lts_en),
 		.rst(rst)
 	);
 
@@ -309,6 +312,8 @@ module PolarisCPU(
 		.invB_en_i(invB_en),
 		.lsh_en_i(lsh_en),
 		.rsh_en_i(rsh_en),
+		.ltu_en_i(ltu_en),
+		.lts_en_i(lts_en),
 		.out_o(aluResult),
 		.cflag_o(cflag_o),
 		.vflag_o(vflag_o),

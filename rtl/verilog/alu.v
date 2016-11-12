@@ -16,6 +16,8 @@ module alu(
 	input		invB_en_i,
 	input		lsh_en_i,
 	input		rsh_en_i,
+	input		ltu_en_i,	// See issue https://github.com/KestrelComputer/polaris/issues/18
+	input		lts_en_i,	// See issue https://github.com/KestrelComputer/polaris/issues/18
 	output	[63:0]	out_o,
 	output		cflag_o,
 	output		vflag_o,
