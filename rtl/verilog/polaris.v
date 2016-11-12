@@ -549,7 +549,7 @@ module CSRs(
 
 	wire mcause_we = csrv_mcause & cwe_i;
 	wire mcause_mcause = ~|{mcause_2, mcause_3, mcause_11, mcause_we};
-	assign cause_o = mcause_mux;
+	assign cause_o = mcause_mux[3:0];
 	assign mcause_mux =
 			(mcause_we ? {cdat_i[63], cdat_i[3:0]} : 0) |
 			(mcause_2 ? {mcause_irq_i, 4'd2} : 0) |
