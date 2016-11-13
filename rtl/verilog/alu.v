@@ -16,6 +16,8 @@ module alu(
 	input		invB_en_i,
 	input		lsh_en_i,
 	input		rsh_en_i,
+	input		ltu_en_i,	// See issue https://github.com/KestrelComputer/polaris/issues/18
+	input		lts_en_i,	// See issue https://github.com/KestrelComputer/polaris/issues/18
 	output	[63:0]	out_o,
 	output		cflag_o,
 	output		vflag_o,
@@ -23,7 +25,7 @@ module alu(
 );
 	wire [63:0] b = inB_i ^ ({64{invB_en_i}});
 
-	wire [63:0] sumL = inA_i[62:0] + b[62:0] + cflag_i;
+	wire [63:0] sumL = inA_i[62:0] + b[62:0] + {62'b0, cflag_i};
 	wire c62 = sumL[63];
 	wire [64:63] sumH = inA_i[63] + b[63] + c62;
 	wire [63:0] sums = sum_en_i ? {sumH[63], sumL[62:0]} : 64'd0;
@@ -43,17 +45,17 @@ module alu(
 	wire [63:0] lshs = lsh_en_i ? lsh1 : 0;
 
 	wire [63:32] sx5 = cflag_i ? {32{inA_i[63]}} : 0;
+	wire [63:0] rsh32 = inB_i[5] ? {sx5, inA_i[63:32]} : inA_i;
 	wire [63:48] sx4 = cflag_i ? {16{rsh32[63]}} : 0;
+	wire [63:0] rsh16 = inB_i[4] ? {sx4, rsh32[63:16]} : rsh32;
 	wire [63:56] sx3 = cflag_i ? {8{rsh16[63]}} : 0;
+	wire [63:0] rsh8  = inB_i[3] ? {sx3, rsh16[63:8]} : rsh16;
 	wire [63:60] sx2 = cflag_i ? {4{rsh8[63]}} : 0;
+	wire [63:0] rsh4  = inB_i[2] ? {sx2, rsh8[63:4]} : rsh8;
 	wire [63:62] sx1 = cflag_i ? {2{rsh4[63]}} : 0;
+	wire [63:0] rsh2  = inB_i[1] ? {sx1, rsh4[63:2]} : rsh4;
 	wire sx0 = cflag_i & rsh2[63];
 
-	wire [63:0] rsh32 = inB_i[5] ? {sx5, inA_i[63:32]} : inA_i;
-	wire [63:0] rsh16 = inB_i[4] ? {sx4, rsh32[63:16]} : rsh32;
-	wire [63:0] rsh8  = inB_i[3] ? {sx3, rsh16[63:8]} : rsh16;
-	wire [63:0] rsh4  = inB_i[2] ? {sx2, rsh8[63:4]} : rsh8;
-	wire [63:0] rsh2  = inB_i[1] ? {sx1, rsh4[63:2]} : rsh4;
 	wire [63:0] rsh1  = inB_i[0] ? {sx0, rsh2[63:1]} : rsh2;
 	wire [63:0] rshs = rsh_en_i ? rsh1 : 0;
 

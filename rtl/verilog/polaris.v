@@ -82,6 +82,7 @@ module PolarisCPU(
 	wire		invB_en;
 	wire		lsh_en;
 	wire		rsh_en;
+	wire		ltu_en, lts_en;
 	wire	[63:0]	aluResult, aluXResult;
 	wire		cflag_o;
 	wire		vflag_o;
@@ -103,7 +104,6 @@ module PolarisCPU(
 	wire		ccr_alu;
 	wire		alub_imm12sb;
 	reg		trap;
-	wire		trap_o;
 	wire		mcause_2, mcause_3, mcause_11;
 	wire		pc_mtvec;
 	reg	[63:0]	mepc;
@@ -289,6 +289,8 @@ module PolarisCPU(
 		.take_irq(take_irq),
 		.mepc_pc(mepc_pc),
 		.mcause_irq_o(mcause_irq_o),
+		.ltu_en(ltu_en),
+		.lts_en(lts_en),
 		.rst(rst)
 	);
 
@@ -310,6 +312,8 @@ module PolarisCPU(
 		.invB_en_i(invB_en),
 		.lsh_en_i(lsh_en),
 		.rsh_en_i(rsh_en),
+		.ltu_en_i(ltu_en),
+		.lts_en_i(lts_en),
 		.out_o(aluResult),
 		.cflag_o(cflag_o),
 		.vflag_o(vflag_o),
@@ -545,7 +549,7 @@ module CSRs(
 
 	wire mcause_we = csrv_mcause & cwe_i;
 	wire mcause_mcause = ~|{mcause_2, mcause_3, mcause_11, mcause_we};
-	assign cause_o = mcause_mux;
+	assign cause_o = mcause_mux[3:0];
 	assign mcause_mux =
 			(mcause_we ? {cdat_i[63], cdat_i[3:0]} : 0) |
 			(mcause_2 ? {mcause_irq_i, 4'd2} : 0) |
