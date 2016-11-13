@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module rom_module(
+module rom(
 	input	[11:2]	A,	// Address
 	output	[31:0]	Q,	// Data output
 	input	STB		// True if ROM is being accessed.

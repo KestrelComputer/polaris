@@ -1,8 +1,11 @@
 `timescale 1ns / 1ps
 
-module computer();
-	reg clk, reset;
-
+module computer(
+`ifdef VERILATOR
+	input clk,
+	input reset
+`endif
+);
 	wire iack;
 	wire [63:0] iadr;
 	wire istb;
@@ -13,21 +16,33 @@ module computer();
 	wire STB;
 	wire [31:0] romQ;
 
+`ifndef VERILATOR
+	reg clk, reset;
+	initial begin
+		clk <= 0;
+		reset <= 1;
+		#60; reset <= 0;
+	end
+
 	always begin
 		#20 clk <= ~clk;
 	end
-
-	initial begin
-// $dumpfile("wtf.vcd"); $dumpvars;
-		clk <= 0;
-		reset <= 1;
-		wait(clk); wait(~clk);
-		wait(clk); wait(~clk);
-		wait(clk); wait(~clk);
-		reset <= 0;
-	end
+`endif
 
 	PolarisCPU cpu(
+		.fence_o(),
+		.trap_o(),
+		.cause_o(),
+		.mepc_o(),
+		.mpie_o(),
+		.mie_o(),
+		.ddat_o(),
+		.dadr_o(),
+		.dwe_o(),
+		.dcyc_o(),
+		.dstb_o(),
+		.dsiz_o(),
+		.dsigned_o(),
 		.irq_i(1'b0),
 		.iack_i(iack),
 		.idat_i(romQ),
@@ -45,7 +60,7 @@ module computer();
 		.reset_i(reset)
 	);
 
-	rom_module rom(
+	rom rom(
 		.A(iadr[11:2]),
 		.Q(romQ),
 		.STB(STB)

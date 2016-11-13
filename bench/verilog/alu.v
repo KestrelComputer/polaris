@@ -16,6 +16,8 @@ module test_alu();
 	reg invB_en_o;
 	reg lsh_en_o;
 	reg rsh_en_o;
+	reg ltu_en_o; // See issue https://github.com/KestrelComputer/polaris/issues/18
+	reg lts_en_o; // See issue https://github.com/KestrelComputer/polaris/issues/18
 
 	alu a(
 		.inA_i(inA_o),
@@ -30,7 +32,9 @@ module test_alu();
 		.xor_en_i(xor_en_o),
 		.invB_en_i(invB_en_o),
 		.lsh_en_i(lsh_en_o),
-		.rsh_en_i(rsh_en_o)
+		.rsh_en_i(rsh_en_o),
+		.ltu_en_i(ltu_en_o),
+		.lts_en_i(lts_en_o)
 	);
 
 	always begin
