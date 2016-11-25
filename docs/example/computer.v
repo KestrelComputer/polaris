@@ -23,12 +23,13 @@ module computer(
 	wire STB;
 	wire [31:0] romQ;
 
+	wire [1:0] xsiz;
 	wire [63:0] xadr;
 	wire [63:0] xdati = {32'd0, romQ};
-	wire xstb, xack;
+	wire xstb, xack, xsigned;
 
 //	initial begin
-//$dumpfile("wtf.vcd"); $dumpvars;
+//	$dumpfile("wtf.vcd"); $dumpvars;
 //	end
 
 `ifndef VERILATOR
@@ -76,38 +77,50 @@ module computer(
 	);
 
 	arbiter arbiter(
-	.idat_i(64'd0),	// CPU cannot write via I-port.
-	.iadr_i(iadr),
-	.iwe_i(1'b0),
-	.icyc_i(istb),
-	.istb_i(istb),
-	.isiz_i({istb, 1'b0}),
-	.isigned_i(1'b0),
-	.iack_o(iack),
-	.idat_o({idatiH, idatiL}),
+		.idat_i(64'd0),	// CPU cannot write via I-port.
+		.iadr_i(iadr),
+		.iwe_i(1'b0),
+		.icyc_i(istb),
+		.istb_i(istb),
+		.isiz_i({istb, 1'b0}),
+		.isigned_i(1'b0),
+		.iack_o(iack),
+		.idat_o({idatiH, idatiL}),
 
-	.ddat_i(ddato),
-	.dadr_i(dadr),
-	.dwe_i(dwe),
-	.dcyc_i(dcyc),
-	.dstb_i(dstb),
-	.dsiz_i(dsiz),
-	.dsigned_i(dsigned),
-	.dack_o(dack),
-	.ddat_o(ddati),
+		.ddat_i(ddato),
+		.dadr_i(dadr),
+		.dwe_i(dwe),
+		.dcyc_i(dcyc),
+		.dstb_i(dstb),
+		.dsiz_i(dsiz),
+		.dsigned_i(dsigned),
+		.dack_o(dack),
+		.ddat_o(ddati),
 
-	.xdat_o(),
-	.xadr_o(xadr),
-	.xwe_o(),
-	.xcyc_o(),
-	.xstb_o(xstb),
-	.xsiz_o(),
-	.xsigned_o(),
-	.xack_i(xack),
-	.xdat_i(xdati),
+		.xdat_o(xdato),
+		.xadr_o(xadr),
+		.xwe_o(),
+		.xcyc_o(),
+		.xstb_o(xstb),
+		.xsiz_o(xsiz),
+		.xsigned_o(xsigned),
+		.xack_i(xack),
+		.xdat_i(xdati),
 
-	.clk_i(clk),
-	.reset_i(reset)
+		.clk_i(clk),
+		.reset_i(reset)
+	);
+
+	bridge bridge(
+		.f_signed_i(xsigned),
+		.f_siz_i(xsiz),
+		.f_adr_i(xadr[2:0]),
+		.f_dat_i(xdato),
+		.f_dat_o(),
+
+		.wb_sel_o(),
+		.wb_dat_i(64'h0706050403020100),
+		.wb_dat_o()
 	);
 
 	rom rom(
