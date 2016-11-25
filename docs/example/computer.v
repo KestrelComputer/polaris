@@ -21,11 +21,11 @@ module computer(
 	wire [63:0] cdato, cdati;
 
 	wire STB;
-	wire [31:0] romQ;
+	wire [63:0] romQ;
 
 	wire [1:0] xsiz;
 	wire [63:0] xadr;
-	wire [63:0] xdati = {32'd0, romQ};
+	wire [63:0] xdati, xdato;
 	wire xstb, xack, xsigned;
 
 //	initial begin
@@ -116,15 +116,15 @@ module computer(
 		.f_siz_i(xsiz),
 		.f_adr_i(xadr[2:0]),
 		.f_dat_i(xdato),
-		.f_dat_o(),
+		.f_dat_o(xdati),
 
 		.wb_sel_o(),
-		.wb_dat_i(64'h0706050403020100),
+		.wb_dat_i(romQ),
 		.wb_dat_o()
 	);
 
 	rom rom(
-		.A(xadr[11:2]),
+		.A(xadr[11:3]),
 		.Q(romQ),
 		.STB(STB)
 	);
