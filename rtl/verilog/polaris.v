@@ -560,9 +560,13 @@ module CSRs(
 	wire mbadaddr_we = csrv_mbadaddr & cwe_i;
 	assign mbadaddr_mux = (mbadaddr_we ? cdat_i : mbadaddr);
 
-	assign mcycle_mux = mcycle + 1;
-	assign minstret_mux = (ft0_i ? minstret + 1 : minstret);
-	assign mtime_mux = (tick_i ? mtime+1 : mtime);
+	assign mcycle_mux = (~reset_i ? mcycle + 1 : 0);
+	assign minstret_mux =
+			(~reset_i & ft0_i ? minstret + 1 : 0) |
+			(~reset_i & ~ft0_i ? minstret : 0);
+	assign mtime_mux =
+			(~reset_i & tick_i ? mtime + 1 : 0) |
+			(~reset_i & ~tick_i ? mtime : 0);
 
 	always @(posedge clk_i) begin
 		mie <= mie_mux;
