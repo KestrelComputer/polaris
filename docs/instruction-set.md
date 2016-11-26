@@ -272,14 +272,14 @@ while the right-hand side is provided as a numeric constant.
 The constant is always sign-extended.
 The table below illustrates the selection of non-shift operations you can perform.
 
-|fn3|Operation|Mnemonic|Description|
-|:-:|:-:|:-:|:-|
-|000|Xrs1 + Xrs2|ADDI|Arithmetic sum.|
-|010|Xrs1 < Xrs2 (signed)|SLTI|Sets the destination register to 1 if Xrs1 < Xrs2; 0 otherwise.|
-|011|Xrs1 < Xrs2 (unsigned)|SLTIU|Sets the destination register to 1 if Xrs1 < Xrs2; 0 otherwise.|
-|100|Xrs1 ^ Xrs2|XORI|Performs the bitwise XOR function for each bit in the source registers.|
-|110|Xrs1 \/ Xrs2|ORI|Performs the bitwise OR function for each bit in the source registers.|
-|111|Xrs1 /\ Xrs2|ANDI|Performs the bitwise AND function for each bit in the source registers.|
+|fn3|Operation             |Mnemonic|Description                                                            |
+|:-:|:--------------------:|:------:|:----------------------------------------------------------------------|
+|000|Xrs1 + Xrs2           |ADDI    |Arithmetic sum.                                                        |
+|010|Xrs1 < Xrs2 (signed)  |SLTI    |Sets the destination register to 1 if Xrs1 < Xrs2; 0 otherwise.        |
+|011|Xrs1 < Xrs2 (unsigned)|SLTIU   |Sets the destination register to 1 if Xrs1 < Xrs2; 0 otherwise.        |
+|100|Xrs1 ^ Xrs2           |XORI    |Performs the bitwise XOR function for each bit in the source registers.|
+|110|Xrs1 \/ Xrs2          |ORI     |Performs the bitwise OR function for each bit in the source registers. |
+|111|Xrs1 /\ Xrs2          |ANDI    |Performs the bitwise AND function for each bit in the source registers.|
 
 Shift operations do not rely on the full 12-bit immediate constant.
 Since it does not make sense to shift a register by 2048 bits,
@@ -287,11 +287,11 @@ RISC-V reserves only 6 bits for shift displacement (imm[5:0]).
 This leaves the remainder of the immediate bits unused, and must be zero for future compatibility.
 The exception is imm[10], which can be used to select between logical and arithmetic shifts.
 
-|fn4|Operation|Mnemonic|Description|
-|:-:|:-:|:-:|:-|
-|0001|Xrs1 << Xrs2|SLLI|Bitwise shift of bits to the left, shifting in 0 bits from the right.|
-|0101|Xrs1 >> Xrs2 (unsigned)|SRLI|Bitwise shift of bits to the right, shifting in 0 bits from the left.|
-|1101|Xrs1 >> Xrs2 (signed)|SRAI|Bitwise shift of bits to the right, retaining the current sign bit.|
+|fn4 |Operation              |Mnemonic|Description                                                          |
+|:--:|:---------------------:|:------:|:--------------------------------------------------------------------|
+|0001|Xrs1 << Xrs2           |SLLI    |Bitwise shift of bits to the left, shifting in 0 bits from the right.|
+|0101|Xrs1 >> Xrs2 (unsigned)|SRLI    |Bitwise shift of bits to the right, shifting in 0 bits from the left.|
+|1101|Xrs1 >> Xrs2 (signed)  |SRAI    |Bitwise shift of bits to the right, retaining the current sign bit.  |
 
 If the `w` bit is set in the opcode field,
 the result is *always* sign-extended as if it were a 32-bit value loaded into a 64-bit register.
