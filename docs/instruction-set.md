@@ -229,24 +229,24 @@ according to the setting of the `fn4` field in the instruction.
 The table below illustrates the selection of operations you can perform.
 The operands of the operation come from the specified registers.
 
-|fn4|Operation|Mnemonic|Description|
-|:-:|:-:|:-:|:-|
-|0000|Xrs1 + Xrs2|ADD|Arithmetic sum.|
-|0001|Xrs1 << Xrs2|SLL|Bitwise shift of bits to the left, shifting in 0 bits from the right.|
-|0010|Xrs1 < Xrs2 (signed)|SLT|Sets the destination register to 1 if Xrs1 < Xrs2; 0 otherwise.|
-|0011|Xrs1 < Xrs2 (unsigned)|SLTU|Sets the destination register to 1 if Xrs1 < Xrs2; 0 otherwise.|
-|0100|Xrs1 ^ Xrs2|XOR|Performs the bitwise XOR function for each bit in the source registers.|
-|0101|Xrs1 >> Xrs2 (unsigned)|SRL|Bitwise shift of bits to the right, shifting in 0 bits from the left.|
-|0110|Xrs1 \/ Xrs2|OR|Performs the bitwise OR function for each bit in the source registers.|
-|0111|Xrs1 /\ Xrs2|AND|Performs the bitwise AND function for each bit in the source registers.|
-|1000|Xrs1 - Xrs2|SUB|Arithmetic difference.|
-|1001|undefined||
-|1010|undefined||
-|1011|undefined||
-|1100|undefined||
-|1101|Xrs1 >> Xrs2 (signed)|SRA|Bitwise shift of bits to the right, retaining the current sign bit.|
-|1110|undefined||
-|1111|undefined||
+|fn4 |Operation              |Mnemonic|Description                                                            |
+|:--:|:---------------------:|:------:|:----------------------------------------------------------------------|
+|0000|Xrs1 + Xrs2            |ADD     |Arithmetic sum.                                                        |
+|0001|Xrs1 << Xrs2           |SLL     |Bitwise shift of bits to the left, shifting in 0 bits from the right.  |
+|0010|Xrs1 < Xrs2 (signed)   |SLT     |Sets the destination register to 1 if Xrs1 < Xrs2; 0 otherwise.        |
+|0011|Xrs1 < Xrs2 (unsigned) |SLTU    |Sets the destination register to 1 if Xrs1 < Xrs2; 0 otherwise.        |
+|0100|Xrs1 ^ Xrs2            |XOR     |Performs the bitwise XOR function for each bit in the source registers.|
+|0101|Xrs1 >> Xrs2 (unsigned)|SRL     |Bitwise shift of bits to the right, shifting in 0 bits from the left.  |
+|0110|Xrs1 \/ Xrs2           |OR      |Performs the bitwise OR function for each bit in the source registers. |
+|0111|Xrs1 /\ Xrs2           |AND     |Performs the bitwise AND function for each bit in the source registers.|
+|1000|Xrs1 - Xrs2            |SUB     |Arithmetic difference.                                                 |
+|1001|undefined              |        |                                                                       |
+|1010|undefined              |        |                                                                       |
+|1011|undefined              |        |                                                                       |
+|1100|undefined              |        |                                                                       |
+|1101|Xrs1 >> Xrs2 (signed)  |SRA     |Bitwise shift of bits to the right, retaining the current sign bit.    |
+|1110|undefined              |        |                                                                       |
+|1111|undefined              |        |                                                                       |
 
 If the `w` bit is set in the opcode field,
 the result is *always* sign-extended as if it were a 32-bit value loaded into a 64-bit register.
