@@ -429,6 +429,45 @@ module PolarisCPU_tb();
 		tick(64);
 		assert_istb(1);
 		assert_iadr(64'hFFFF_FFFF_8000_0000);
+
+		// Bug https://github.com/KestrelComputer/polaris/issues/18
+		idat_i <= 32'b111111111111_00000_000_00001_0010011;	// ADDI X1, X0, -1
+		tick(100);
+		tick(101);
+		tick(102);
+		tick(103);
+		idat_i <= 32'b000000000001_00001_010_00010_0010011;	// SLTI X2, X1, 1
+		tick(105);
+		tick(106);
+		tick(107);
+		tick(108);
+		idat_i <= 32'b000000000000_00010_000_00000_1100111;	// JALR 0, 0(2)
+		tick(110);
+		tick(111);
+		tick(112);
+		tick(113);
+		tick(114);
+		assert_istb(1);
+		assert_iadr(64'h0000_0000_0000_0001);
+
+		idat_i <= 32'b111111111111_00000_000_00001_0010011;	// ADDI X1, X0, -1
+		tick(100);
+		tick(101);
+		tick(102);
+		tick(103);
+		idat_i <= 32'b000000000001_00001_011_00010_0010011;	// SLTUI X2, X1, 1
+		tick(105);
+		tick(106);
+		tick(107);
+		tick(108);
+		idat_i <= 32'b000000000000_00010_000_00000_1100111;	// JALR 0, 0(2)
+		tick(110);
+		tick(111);
+		tick(112);
+		tick(113);
+		tick(114);
+		assert_istb(1);
+		assert_iadr(64'h0000_0000_0000_0000);
 	end
 	endtask
 

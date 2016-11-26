@@ -28,7 +28,9 @@ module alu(
 	wire [63:0] sumL = inA_i[62:0] + b[62:0] + {62'b0, cflag_i};
 	wire c62 = sumL[63];
 	wire [64:63] sumH = inA_i[63] + b[63] + c62;
-	wire [63:0] sums = sum_en_i ? {sumH[63], sumL[62:0]} : 64'd0;
+	wire [63:0] rawSums = {sumH[63], sumL[62:0]};
+
+	wire [63:0] sums = sum_en_i ? rawSums : 64'd0;
 	assign zflag_o = ~(|out_o);
 	assign vflag_o = sumH[64] ^ sumL[63];
 	assign cflag_o = sumH[64];
@@ -59,5 +61,8 @@ module alu(
 	wire [63:0] rsh1  = inB_i[0] ? {sx0, rsh2[63:1]} : rsh2;
 	wire [63:0] rshs = rsh_en_i ? rsh1 : 0;
 
-	assign out_o = sums | ands | xors | lshs | rshs ;
+	wire isLTS = lts_en_i ? {63'd0, rawSums[63] ^ vflag_o} : 0;
+	wire isLTU = ltu_en_i ? {63'd0, ~cflag_o} : 0;
+
+	assign out_o = sums | ands | xors | lshs | rshs | isLTS | isLTU;
 endmodule
