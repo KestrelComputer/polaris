@@ -68,7 +68,26 @@ thus, no spurious nul-character will be produced.
 To minimize example complexity,
 both `EXIT` and `FAIL` will read back as 0.
 
-### Sample Software
+### Architecture
+
+The following diagram illustrates how the computer is constructed.
+This particular computer is free of RAM,
+since registers provide sufficient storage for our needs.
+The CPU's I and D ports are connected to a common Furcula bus (the X-bus) via an *arbiter*.
+The arbiter's job is to prioritize which port has control over the X-bus
+in the event that both want to transfer data at the same time.
+The Wishbone bridge adapts Furcula to a Wishbone B3-compatible bus,
+allowing compatibility with devices on that bus.
+
+![Example Computer Diagram](example/block-diagram.svg)
+
+Note that this example is, in part, more complicated than it needs to be.
+There is no need for a Wishbone bus bridge, as we don't use Wishbone's features in this example.
+Similarly, the arbiter isn't *strictly* necessary,
+since the KCP53000 will never concurrently generate an access on the I and D ports.
+However, we include it here in anticipation of a future generation of the processor architecture which can.
+
+## Sample Software
 
 We need a demonstration program to run on this computer, to illustrate that it works.
 We'll use the traditional "Hello world" program.
@@ -268,41 +287,41 @@ However, with a Furcula bus arbiter, you can merge the I- and D-ports of the pro
 
     module arbiter(
             // I-Port
-            input	[63:0]	idat_i,
-            input	[63:0]	iadr_i,
-            input		iwe_i,
-            input		icyc_i,
-            input		istb_i,
-            input	[1:0]	isiz_i,
-            input		isigned_i,
-            output		iack_o,
-            output	[63:0]	idat_o,
+            input       [63:0]  idat_i,
+            input       [63:0]  iadr_i,
+            input               iwe_i,
+            input               icyc_i,
+            input               istb_i,
+            input       [1:0]   isiz_i,
+            input               isigned_i,
+            output              iack_o,
+            output      [63:0]  idat_o,
 
             // D-Port
-            input	[63:0]	ddat_i,
-            input	[63:0]	dadr_i,
-            input		dwe_i,
-            input		dcyc_i,
-            input		dstb_i,
-            input	[1:0]	dsiz_i,
-            input		dsigned_i,
-            output		dack_o,
-            output	[63:0]	ddat_o,
+            input       [63:0]  ddat_i,
+            input       [63:0]  dadr_i,
+            input               dwe_i,
+            input               dcyc_i,
+            input               dstb_i,
+            input       [1:0]   dsiz_i,
+            input               dsigned_i,
+            output              dack_o,
+            output      [63:0]  ddat_o,
 
             // X-Port
-            output	[63:0]	xdat_o,
-            output	[63:0]	xadr_o,
-            output		xwe_o,
-            output		xcyc_o,
-            output		xstb_o,
-            output	[1:0]	xsiz_o,
-            output		xsigned_o,
-            input		xack_i,
-            input	[63:0]	xdat_i,
+            output      [63:0]  xdat_o,
+            output      [63:0]  xadr_o,
+            output              xwe_o,
+            output              xcyc_o,
+            output              xstb_o,
+            output      [1:0]   xsiz_o,
+            output              xsigned_o,
+            input               xack_i,
+            input       [63:0]  xdat_i,
 
             // Miscellaneous
-            input		clk_i,
-            input		reset_i
+            input               clk_i,
+            input               reset_i
     );
             reg reserve_i, reserve_d;
 
@@ -346,16 +365,16 @@ Furcula or Wishbone.
 
     module bridge(
             // FURCULA BUS
-            input		f_signed_i,
-            input	[1:0]	f_siz_i,
-            input	[2:0]	f_adr_i,
-            input	[63:0]	f_dat_i,
-            output	[63:0]	f_dat_o,
+            input               f_signed_i,
+            input       [1:0]   f_siz_i,
+            input       [2:0]   f_adr_i,
+            input       [63:0]  f_dat_i,
+            output      [63:0]  f_dat_o,
 
             // WISHBONE BUS
-            output	[7:0]	wb_sel_o,
-            output	[63:0]	wb_dat_o,
-            input	[63:0]	wb_dat_i
+            output      [7:0]   wb_sel_o,
+            output      [63:0]  wb_dat_o,
+            input       [63:0]  wb_dat_i
     );
             // Wishbone SEL_O signal generation.
 
@@ -492,12 +511,7 @@ The computer module wraps everything together into a single circuit.
 
     `timescale 1ns / 1ps
 
-    module computer(
-    `ifdef VERILATOR
-            input clk,
-            input reset
-    `endif
-    );
+    module computer();
             wire iack;
             wire [63:0] iadr;
             wire istb;
@@ -519,19 +533,6 @@ The computer module wraps everything together into a single circuit.
             wire [63:0] xadr;
             wire [63:0] xdati, xdato;
             wire xstb, xack, xsigned;
-
-    `ifndef VERILATOR
-            reg clk, reset;
-            initial begin
-                    clk <= 0;
-                    reset <= 1;
-                    #60; reset <= 0;
-            end
-
-            always begin
-                    #20 clk <= ~clk;
-            end
-    `endif
 
             PolarisCPU cpu(
                     .fence_o(),
