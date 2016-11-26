@@ -107,6 +107,8 @@ module test_alu();
 		xor_en_o <= 0;
 		lsh_en_o <= 0;
 		rsh_en_o <= 0;
+		ltu_en_o <= 0;
+		lts_en_o <= 0;
 		tick(story);
 		assert_out({base[62:0], cin});
 		assert_c(carry);
@@ -131,6 +133,8 @@ module test_alu();
 		xor_en_o <= 0;
 		lsh_en_o <= 0;
 		rsh_en_o <= 0;
+		lts_en_o <= 0;
+		ltu_en_o <= 0;
 		tick(story);
 		assert_out(0);
 		assert_c(carry);
@@ -146,6 +150,8 @@ module test_alu();
 		xor_en_o <= 0;
 		lsh_en_o <= 0;
 		rsh_en_o <= 0;
+		lts_en_o <= 0;
+		ltu_en_o <= 0;
 		tick(story | 16'h8000);
 		assert_out(-1);
 		assert_c(~carry);
@@ -160,11 +166,14 @@ module test_alu();
 	begin
 		inA_o <= 64'hFFFF_FFFF_FFFF_FFFF;
 		inB_o <= base;
+		invB_en_o <= 0;
 		sum_en_o <= 0;
 		and_en_o <= 1;
 		xor_en_o <= 0;
 		lsh_en_o <= 0;
 		rsh_en_o <= 0;
+		lts_en_o <= 0;
+		ltu_en_o <= 0;
 		tick(story);
 		assert_out(base);
 	end
@@ -176,21 +185,27 @@ module test_alu();
 	begin
 		inA_o <= 64'h0000_0000_0000_0000;
 		inB_o <= base;
+		invB_en_o <= 0;
 		sum_en_o <= 0;
 		and_en_o <= 0;
 		xor_en_o <= 1;
 		lsh_en_o <= 0;
 		rsh_en_o <= 0;
+		lts_en_o <= 0;
+		ltu_en_o <= 0;
 		tick(story);
 		assert_out(base);
 
 		inA_o <= base;
 		inB_o <= base;
+		invB_en_o <= 0;
 		sum_en_o <= 0;
 		and_en_o <= 0;
 		xor_en_o <= 1;
 		lsh_en_o <= 0;
 		rsh_en_o <= 0;
+		lts_en_o <= 0;
+		ltu_en_o <= 0;
 		tick(story | 16'h8000);
 		assert_out(0);
 	end
@@ -202,21 +217,27 @@ module test_alu();
 	begin
 		inA_o <= 64'h0000_0000_0000_0000;
 		inB_o <= base;
+		invB_en_o <= 0;
 		sum_en_o <= 0;
 		and_en_o <= 1;
 		xor_en_o <= 1;
 		lsh_en_o <= 0;
 		rsh_en_o <= 0;
+		lts_en_o <= 0;
+		ltu_en_o <= 0;
 		tick(story);
 		assert_out(base);
 
 		inA_o <= 64'hFFFF_FFFF_FFFF_FFFF;
 		inB_o <= base;
+		invB_en_o <= 0;
 		sum_en_o <= 0;
 		and_en_o <= 1;
 		xor_en_o <= 1;
 		lsh_en_o <= 0;
 		rsh_en_o <= 0;
+		lts_en_o <= 0;
+		ltu_en_o <= 0;
 		tick(story | 16'h8000);
 		assert_out(64'hFFFF_FFFF_FFFF_FFFF);
 	end
@@ -233,12 +254,39 @@ module test_alu();
 	begin
 		inA_o <= a;
 		inB_o <= {58'd0, shamt};
+		invB_en_o <= 0;
 		cflag_o <= cflag;
 		sum_en_o <= 0;
 		and_en_o <= 0;
 		xor_en_o <= 0;
 		lsh_en_o <= lsh;
 		rsh_en_o <= rsh;
+		lts_en_o <= 0;
+		ltu_en_o <= 0;
+		tick(story);
+		assert_out(expected);
+	end
+	endtask
+
+	task check_lt;
+	input [15:0] story;
+	input [63:0] a;
+	input [63:0] b;
+	input [63:0] expected;
+	input lts;
+	input ltu;
+	begin
+		inA_o <= a;
+		inB_o <= b;
+		cflag_o <= 1'b1;
+		invB_en_o <= 1'b1;
+		sum_en_o <= 0;
+		and_en_o <= 0;
+		xor_en_o <= 0;
+		lsh_en_o <= 0;
+		rsh_en_o <= 0;
+		lts_en_o <= lts;
+		ltu_en_o <= ltu;
 		tick(story);
 		assert_out(expected);
 	end
@@ -1089,6 +1137,20 @@ module test_alu();
 		check_asr_2(16'h093D, 6'd61, 64'h0000_0000_0000_0002);
 		check_asr_2(16'h093E, 6'd62, 64'h0000_0000_0000_0001);
 		check_asr_2(16'h093F, 6'd63, 64'h0000_0000_0000_0000);
+
+		// I accidentally left SLT/SLTU instructions unimplemented
+		// because I forgot to wire things up in the ALU.  These
+		// tests cover my fix to make sure I have things implemented
+		// correctly.
+		// See https://github.com/KestrelComputer/polaris/issues/18
+
+		check_lt(16'h0A00, 64'hFFFF_FFFF_FFFF_FFFF, 64'h0000_0000_0000_0001, 1, 1, 0);
+		check_lt(16'h0A01, 64'h0000_0000_0000_0000, 64'h0000_0000_0000_0001, 1, 1, 0);
+		check_lt(16'h0A02, 64'h0000_0000_0000_0001, 64'h0000_0000_0000_0001, 0, 1, 0);
+
+		check_lt(16'h0A10, 64'hFFFF_FFFF_FFFF_FFFF, 64'h0000_0000_0000_0001, 0, 0, 1);
+		check_lt(16'h0A11, 64'h0000_0000_0000_0000, 64'h0000_0000_0000_0001, 1, 0, 1);
+		check_lt(16'h0A12, 64'h0000_0000_0000_0001, 64'h0000_0000_0000_0001, 0, 0, 1);
 
 		$display("@DONE");
 		$stop;
