@@ -252,11 +252,15 @@ module test_bottleneck();
 		tick(8'h01);
 		assert_m_err_align_o(1);
 		assert_m_ack_o(0);
+		assert_s_stb_o(0);
+		assert_s_cyc_o(0);
 
 		s_ack_i <= 1;
 		tick(8'h02);
 		assert_m_err_align_o(1);
 		assert_m_ack_o(0);
+		assert_s_stb_o(0);
+		assert_s_cyc_o(0);
 		
 		m_adr_i <= 64'h4444_3333_2222_1112;
 		m_cyc_i <= 1;
@@ -305,11 +309,15 @@ module test_bottleneck();
 		tick(8'h01);
 		assert_m_err_align_o(1);
 		assert_m_ack_o(0);
+		assert_s_stb_o(0);
+		assert_s_cyc_o(0);
 
 		s_ack_i <= 0;
 		tick(8'h02);
 		assert_m_err_align_o(1);
 		assert_m_ack_o(0);
+		assert_s_stb_o(0);
+		assert_s_cyc_o(0);
 
 		m_adr_i <= 64'h4444_3333_2222_1112;
 		m_cyc_i <= 1;
@@ -336,6 +344,68 @@ module test_bottleneck();
 	end
 	endtask
 
+	task test_word_rd;
+	begin
+		scenario(8'h05);
+
+		s_ack_i <= 0;
+		m_adr_i <= 64'h4444_3333_2222_1111;
+		m_cyc_i <= 1;
+		m_dat_i <= 64'h0000_0000_0000_0000;
+		m_signed_i <= 1;
+		m_siz_i <= 2'b10;
+		m_stb_i <= 1;
+		m_we_i  <= 0;
+		tick(8'h01);
+		assert_m_err_align_o(1);
+		assert_m_ack_o(0);
+		assert_s_stb_o(0);
+		assert_s_cyc_o(0);
+
+		s_ack_i <= 0;
+		m_adr_i <= 64'h4444_3333_2222_1112;
+		m_cyc_i <= 1;
+		m_dat_i <= 64'h0000_0000_0000_0000;
+		m_signed_i <= 1;
+		m_siz_i <= 2'b10;
+		m_stb_i <= 1;
+		m_we_i  <= 0;
+		tick(8'h02);
+		assert_m_err_align_o(1);
+		assert_m_ack_o(0);
+		assert_s_stb_o(0);
+		assert_s_cyc_o(0);
+
+		s_ack_i <= 0;
+		m_adr_i <= 64'h4444_3333_2222_1113;
+		m_cyc_i <= 1;
+		m_dat_i <= 64'h0000_0000_0000_0000;
+		m_signed_i <= 1;
+		m_siz_i <= 2'b10;
+		m_stb_i <= 1;
+		m_we_i  <= 0;
+		tick(8'h03);
+		assert_m_err_align_o(1);
+		assert_m_ack_o(0);
+		assert_s_stb_o(0);
+		assert_s_cyc_o(0);
+
+		s_ack_i <= 0;
+		m_adr_i <= 64'h4444_3333_2222_1114;
+		m_cyc_i <= 1;
+		m_dat_i <= 64'h0000_0000_0000_0000;
+		m_signed_i <= 1;
+		m_siz_i <= 2'b10;
+		m_stb_i <= 1;
+		m_we_i  <= 0;
+		tick(8'h04);
+		assert_m_err_align_o(0);
+		assert_m_ack_o(0);
+		assert_s_stb_o(1);
+		assert_s_cyc_o(1);
+	end
+	endtask
+
 	initial begin
 		clk_i <= 0;
 		reset_i <= 0;
@@ -345,6 +415,7 @@ module test_bottleneck();
 		test_byte_wr();
 		test_hword_rd();
 		test_hword_wr();
+		test_word_rd();
 
 		$display("@I Done.");
 		$stop;
