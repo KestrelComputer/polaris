@@ -13,6 +13,7 @@ module test_bottleneck();
 	reg		m_we_i;
 	wire		m_ack_o;
 	wire	[63:0]	m_dat_o;
+	wire		m_err_align_o;
 
 	wire	[63:0]	s_adr_o;
 	wire		s_cyc_o;
@@ -34,6 +35,7 @@ module test_bottleneck();
 		.m_we_i(m_we_i),
 		.m_ack_o(m_ack_o),
 		.m_dat_o(m_dat_o),
+		.m_err_align_o(m_err_align_o),
 		.s_adr_o(s_adr_o),
 		.s_cyc_o(s_cyc_o),
 		.s_signed_o(s_signed_o),
@@ -158,6 +160,16 @@ module test_bottleneck();
 	end
 	endtask
 
+	task assert_m_err_align_o;
+	input expected;
+	begin
+		if(m_err_align_o !== expected) begin
+			$display("@E %04X M_ERR_ALIGN_O Expected %d Got %d", story_i, expected, m_err_align_o);
+			$stop;
+		end
+	end
+	endtask
+
 	task test_byte_rd;
 	begin
 		scenario(8'h01);
@@ -170,6 +182,7 @@ module test_bottleneck();
 		m_stb_i <= 1;
 		m_we_i  <= 0;
 		tick(8'h01);
+		assert_m_err_align_o(0);
 		assert_s_adr_o(64'h4444_3333_2222_1111);
 		assert_s_cyc_o(1);
 		assert_s_signed_o(1);
@@ -205,6 +218,7 @@ module test_bottleneck();
 		m_stb_i <= 1;
 		m_we_i  <= 1;
 		tick(8'h01);
+		assert_m_err_align_o(0);
 		assert_s_adr_o(64'h4444_3333_2222_1111);
 		assert_s_cyc_o(1);
 		assert_s_signed_o(1);
@@ -223,6 +237,59 @@ module test_bottleneck();
 	end
 	endtask
 
+	task test_hword_rd;
+	begin
+		scenario(8'h03);
+
+		s_ack_i <= 0;
+		m_adr_i <= 64'h4444_3333_2222_1111;
+		m_cyc_i <= 1;
+		m_dat_i <= 64'h0000_0000_0000_0000;
+		m_signed_i <= 1;
+		m_siz_i <= 2'b01;
+		m_stb_i <= 1;
+		m_we_i  <= 0;
+		tick(8'h01);
+		assert_m_err_align_o(1);
+		assert_m_ack_o(0);
+
+		s_ack_i <= 1;
+		tick(8'h02);
+		assert_m_err_align_o(1);
+		assert_m_ack_o(0);
+		
+		m_adr_i <= 64'h4444_3333_2222_1112;
+		m_cyc_i <= 1;
+		m_dat_i <= 64'h0000_0000_0000_0000;
+		m_signed_i <= 1;
+		m_siz_i <= 2'b01;
+		m_stb_i <= 1;
+		m_we_i  <= 0;
+		tick(8'h03);
+		assert_m_err_align_o(0);
+		assert_s_adr_o(64'h4444_3333_2222_1112);
+		assert_s_cyc_o(1);
+		assert_s_signed_o(1);
+		assert_s_siz_o(1);
+		assert_s_stb_o(1);
+		assert_s_we_o(0);
+
+		s_ack_i <= 0;
+		s_dat_i <= 16'hAA55;
+		tick(8'h04);
+		assert_m_ack_o(0);
+
+		s_ack_i <= 1;
+		tick(8'h05);
+		assert_m_ack_o(1);
+		assert_m_dat_o(64'hFFFF_FFFF_FFFF_AA55);
+
+		m_signed_i <= 0;
+		tick(8'h06);
+		assert_m_dat_o(64'h0000_0000_0000_AA55);
+	end
+	endtask
+
 	initial begin
 		clk_i <= 0;
 		reset_i <= 0;
@@ -230,6 +297,7 @@ module test_bottleneck();
 
 		test_byte_rd();
 		test_byte_wr();
+		test_hword_rd();
 
 		$display("@I Done.");
 		$stop;
