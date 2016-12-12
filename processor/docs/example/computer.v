@@ -1,6 +1,9 @@
 `timescale 1ns / 1ps
 
-module computer(
+module computer #(
+	parameter bootrom_file = "example.hex"
+)
+(
 `ifdef VERILATOR
 	input clk,
 	input reset
@@ -123,7 +126,7 @@ module computer(
 		.wb_dat_o()
 	);
 
-	rom rom(
+	rom #(.bootrom_file(bootrom_file)) rom(
 		.A(xadr[11:3]),
 		.Q(romQ),
 		.STB(STB)
