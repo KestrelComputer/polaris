@@ -16,6 +16,7 @@ module test_bottleneck();
 
 	wire	[63:0]	s_adr_o;
 	wire		s_cyc_o;
+	wire	[15:0]	s_dat_o;
 	wire		s_signed_o;
 	wire		s_siz_o;
 	wire		s_stb_o;
@@ -40,7 +41,8 @@ module test_bottleneck();
 		.s_stb_o(s_stb_o),
 		.s_we_o(s_we_o),
 		.s_ack_i(s_ack_i),
-		.s_dat_i(s_dat_i)
+		.s_dat_i(s_dat_i),
+		.s_dat_o(s_dat_o)
 	);
 
 	always begin
@@ -126,6 +128,16 @@ module test_bottleneck();
 	end
 	endtask
 
+	task assert_s_dat_o;
+	input [15:0] expected;
+	begin
+		if(s_dat_o !== expected) begin
+			$display("@E %04X S_DAT_O Expected %04X Got %04X", story_i, expected, s_dat_o);
+			$stop;
+		end
+	end
+	endtask
+
 	task assert_m_ack_o;
 	input expected;
 	begin
@@ -181,12 +193,43 @@ module test_bottleneck();
 	end
 	endtask
 
+	task test_byte_wr;
+	begin
+		scenario(8'h02);
+
+		m_adr_i <= 64'h4444_3333_2222_1111;
+		m_cyc_i <= 1;
+		m_dat_i <= 64'hAAAA_BBBB_CCCC_DDDD;
+		m_signed_i <= 1;
+		m_siz_i <= 2'b00;
+		m_stb_i <= 1;
+		m_we_i  <= 1;
+		tick(8'h01);
+		assert_s_adr_o(64'h4444_3333_2222_1111);
+		assert_s_cyc_o(1);
+		assert_s_signed_o(1);
+		assert_s_siz_o(0);
+		assert_s_stb_o(1);
+		assert_s_we_o(1);
+		assert_s_dat_o(16'h00DD);
+
+		s_ack_i <= 0;
+		tick(8'h02);
+		assert_m_ack_o(0);
+
+		s_ack_i <= 1;
+		tick(8'h03);
+		assert_m_ack_o(1);
+	end
+	endtask
+
 	initial begin
 		clk_i <= 0;
 		reset_i <= 0;
 		tick(8'h00);
 
 		test_byte_rd();
+		test_byte_wr();
 
 		$display("@I Done.");
 		$stop;
