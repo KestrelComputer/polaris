@@ -28,6 +28,7 @@ module bottleneck(
 	wire [63:0] s_dat_16u = {48'd0, s_dat_i};
 
 	wire [15:0] m_dat_8 = {8'h00, m_dat_i[7:0]};
+	wire [15:0] m_dat_16 = m_dat_i[15:0];
 
 	wire m_xfer8b = (m_siz_i == 2'b00) & m_cyc_i & m_stb_i;
 	wire m_xfer16b = (m_siz_i == 2'b01) & m_cyc_i & m_stb_i;
@@ -38,7 +39,9 @@ module bottleneck(
 	assign s_siz_o = m_siz_i[0];
 	assign s_stb_o = m_stb_i;
 	assign s_we_o = m_we_i;
-	assign s_dat_o = m_dat_8;
+	assign s_dat_o =
+		(m_xfer8b ? m_dat_8 : 0) |
+		(m_xfer16b ? m_dat_16 : 0);
 
 	assign m_err_align_o =
 		(m_xfer16b ? m_adr_i[0] : 0);
