@@ -1,6 +1,9 @@
 `timescale 1ns / 1ps
 
-module rom(
+module rom #(
+	parameter bootrom_file = ""
+)
+(
 	input	[11:3]	A,	// Address
 	output	[63:0]	Q,	// Data output
 	input	STB		// True if ROM is being accessed.
@@ -10,7 +13,7 @@ module rom(
 	assign Q = STB ? results : 0;
 
 	initial begin
-		$readmemh("example.hex", contents);
+		$readmemh(bootrom_file, contents);
 	end
 endmodule
 
