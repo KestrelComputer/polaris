@@ -44,7 +44,9 @@ module test_bottleneck();
 		.s_we_o(s_we_o),
 		.s_ack_i(s_ack_i),
 		.s_dat_i(s_dat_i),
-		.s_dat_o(s_dat_o)
+		.s_dat_o(s_dat_o),
+		.clk_i(clk_i),
+		.reset_i(reset_i)
 	);
 
 	always begin
@@ -55,9 +57,11 @@ module test_bottleneck();
 	input [7:0] substory;
 	begin
 		story_i <= {story_i[15:8], substory};
-		@(clk_i);
-		@(~clk_i);
-		#10;
+wait(clk_i);
+wait(~clk_i);
+//		@(clk_i);
+//		@(~clk_i);
+		#5;
 	end
 	endtask
 
@@ -172,7 +176,7 @@ module test_bottleneck();
 
 	task test_byte_rd;
 	begin
-		scenario(8'h01);
+		scenario(1);
 
 		m_adr_i <= 64'h4444_3333_2222_1111;
 		m_cyc_i <= 1;
@@ -208,7 +212,7 @@ module test_bottleneck();
 
 	task test_byte_wr;
 	begin
-		scenario(8'h02);
+		scenario(2);
 
 		m_adr_i <= 64'h4444_3333_2222_1111;
 		m_cyc_i <= 1;
@@ -239,7 +243,7 @@ module test_bottleneck();
 
 	task test_hword_rd;
 	begin
-		scenario(8'h03);
+		scenario(3);
 
 		s_ack_i <= 0;
 		m_adr_i <= 64'h4444_3333_2222_1111;
@@ -296,7 +300,7 @@ module test_bottleneck();
 
 	task test_hword_wr;
 	begin
-		scenario(8'h04);
+		scenario(4);
 
 		s_ack_i <= 1;
 		m_adr_i <= 64'h4444_3333_2222_1111;
@@ -346,7 +350,7 @@ module test_bottleneck();
 
 	task test_word_rd;
 	begin
-		scenario(8'h05);
+		scenario(5);
 
 		s_ack_i <= 0;
 		m_adr_i <= 64'h4444_3333_2222_1111;
@@ -401,14 +405,58 @@ module test_bottleneck();
 		tick(8'h04);
 		assert_m_err_align_o(0);
 		assert_m_ack_o(0);
-		assert_s_stb_o(1);
+		assert_s_adr_o(64'h4444_3333_2222_1116);
 		assert_s_cyc_o(1);
+		assert_s_signed_o(1);
+		assert_s_siz_o(1);
+		assert_s_stb_o(1);
+		assert_s_we_o(0);
+
+		s_ack_i <= 1;
+		s_dat_i <= 16'hDEAD;
+		tick(8'h05);
+		assert_m_err_align_o(0);
+		// NOTE: m_ack_o is asserted ONLY because we've just entered into
+		// the 2nd cycle of a two-cycle transaction.  This means that whatever
+		// appears on s_ack_i will be channeled to m_ack_o.  We clear s_ack_i
+		// below.
+		assert_m_ack_o(1);
+		assert_m_dat_o(64'hFFFF_FFFF_DEAD_DEAD);
+		assert_s_adr_o(64'h4444_3333_2222_1114);
+		assert_s_cyc_o(1);
+		assert_s_signed_o(1);
+		assert_s_siz_o(1);
+		assert_s_stb_o(1);
+		assert_s_we_o(0);
+
+		s_ack_i <= 0;
+		s_dat_i <= 16'hBEEF;
+		tick(8'h06);
+		assert_m_err_align_o(0);
+		assert_m_ack_o(0);
+		assert_m_dat_o(64'hFFFF_FFFF_DEAD_BEEF);
+
+		s_ack_i <= 1;
+		#5;
+		assert_m_ack_o(1);
+		tick(8'h07);
+		#60;
+		assert_m_ack_o(0);
+
+		m_siz_i <= 2'b01;
+		#5;
+		assert_m_ack_o(1);
 	end
 	endtask
 
 	initial begin
+		$dumpfile("wtf.vcd");
+		$dumpvars;
+
 		clk_i <= 0;
 		reset_i <= 0;
+		story_i <= 0;
+
 		tick(8'h00);
 
 		test_byte_rd();
