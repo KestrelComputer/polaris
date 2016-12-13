@@ -46,10 +46,10 @@
 	SSizO_1 SStbO_1 SWeO_MWeI MDatO_SDatI aligned]
 
  [on [~ResetI MCycI MStbI MSiz1 ~MSiz0 ~MAdrI1 ~MAdrI0 ack1 ~SAckI]
-	ack1_o aligned]
+	ack1_o]
 
  [on [~ResetI MCycI MStbI MSiz1 ~MSiz0 ~MAdrI1 ~MAdrI0 ack1 SAckI]
-	MAckO_1 aligned]
+	MAckO_1]
 
 \\ 64-bit I/O
 
@@ -76,7 +76,10 @@
 
  [on [~ResetI MCycI MStbI MSiz1 MSiz0 ~MAdrI2 ~MAdrI1 ~MAdrI0 ack1 ack2 ack3]
 	SAdrO_MAdrI SDatO_MDatI SSignedO_MSignedI
-	SSizO_1 SStbO_1 SWeO_MWeI MDatO_SDatI aligned ack1_o ack2_o ack3_o]
+	SSizO_1 SStbO_1 SWeO_MWeI MDatO_SDatI aligned]
+
+ [on [~ResetI MCycI MStbI MSiz1 MSiz0 ~MAdrI2 ~MAdrI1 ~MAdrI0 ack1 ack2 ack3 ~SAckI]
+	ack1_o ack2_o ack3_o]
 
  [on [~ResetI MCycI MStbI MSiz1 MSiz0 ~MAdrI2 ~MAdrI1 ~MAdrI0 ack1 ack2 ack3 SAckI]
 	MAckO_1]
