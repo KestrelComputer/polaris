@@ -57,10 +57,8 @@ module test_bottleneck();
 	input [7:0] substory;
 	begin
 		story_i <= {story_i[15:8], substory};
-wait(clk_i);
-wait(~clk_i);
-//		@(clk_i);
-//		@(~clk_i);
+		wait(clk_i);
+		wait(~clk_i);
 		#5;
 	end
 	endtask
@@ -580,13 +578,105 @@ wait(~clk_i);
 		assert_s_we_o(0);
 
 		s_dat_i <= 16'hFACE;
-#2;
+		#2;
 		assert_m_dat_o(64'hDEAD_BEEF_FEED_FACE);
 
 		tick(8'h08);
 		assert_m_err_align_o(0);
 		assert_m_ack_o(0);
-		#100;
+	end
+	endtask
+
+	task test_dword_wr;
+	begin
+		scenario(8);
+		m_cyc_i <= 0;	// Reset the state of the bridge
+
+		wait(clk_i);
+		story_i <= 16'h0801;
+		s_ack_i <= 1;
+		m_adr_i <= 64'h4444_3333_2222_1118;
+		m_cyc_i <= 1;
+		m_dat_i <= 64'h1111_2222_3333_4444;
+		m_signed_i <= 1;
+		m_siz_i <= 2'b11;
+		m_stb_i <= 1;
+		m_we_i  <= 1;
+		wait(~clk_i);
+		assert_m_err_align_o(0);
+		assert_m_ack_o(0);
+		assert_s_adr_o(64'h4444_3333_2222_111E);
+		assert_s_cyc_o(1);
+		assert_s_signed_o(1);
+		assert_s_siz_o(1);
+		assert_s_stb_o(1);
+		assert_s_we_o(1);
+		assert_s_dat_o(16'h1111);
+
+		wait(clk_i);
+		story_i <= 16'h0802;
+		s_ack_i <= 1;
+		m_adr_i <= 64'h4444_3333_2222_1118;
+		m_cyc_i <= 1;
+		m_dat_i <= 64'h1111_2222_3333_4444;
+		m_signed_i <= 1;
+		m_siz_i <= 2'b11;
+		m_stb_i <= 1;
+		m_we_i  <= 1;
+		wait(~clk_i);
+		assert_m_err_align_o(0);
+		assert_m_ack_o(0);
+		assert_s_adr_o(64'h4444_3333_2222_111C);
+		assert_s_cyc_o(1);
+		assert_s_signed_o(1);
+		assert_s_siz_o(1);
+		assert_s_stb_o(1);
+		assert_s_we_o(1);
+		assert_s_dat_o(16'h2222);
+
+		wait(clk_i);
+		story_i <= 16'h0803;
+		s_ack_i <= 1;
+		m_adr_i <= 64'h4444_3333_2222_1118;
+		m_cyc_i <= 1;
+		m_dat_i <= 64'h1111_2222_3333_4444;
+		m_signed_i <= 1;
+		m_siz_i <= 2'b11;
+		m_stb_i <= 1;
+		m_we_i  <= 1;
+		wait(~clk_i);
+		assert_m_err_align_o(0);
+		assert_m_ack_o(0);
+		assert_s_adr_o(64'h4444_3333_2222_111A);
+		assert_s_cyc_o(1);
+		assert_s_signed_o(1);
+		assert_s_siz_o(1);
+		assert_s_stb_o(1);
+		assert_s_we_o(1);
+		assert_s_dat_o(16'h3333);
+
+		wait(clk_i);
+		story_i <= 16'h0804;
+		s_ack_i <= 1;
+		m_adr_i <= 64'h4444_3333_2222_1118;
+		m_cyc_i <= 1;
+		m_dat_i <= 64'h1111_2222_3333_4444;
+		m_signed_i <= 1;
+		m_siz_i <= 2'b11;
+		m_stb_i <= 1;
+		m_we_i  <= 1;
+		wait(~clk_i);
+		assert_m_err_align_o(0);
+		assert_m_ack_o(1);
+		assert_s_adr_o(64'h4444_3333_2222_1118);
+		assert_s_cyc_o(1);
+		assert_s_signed_o(1);
+		assert_s_siz_o(1);
+		assert_s_stb_o(1);
+		assert_s_we_o(1);
+		assert_s_dat_o(16'h4444);
+
+		wait(clk_i);
 	end
 	endtask
 
@@ -607,6 +697,7 @@ wait(~clk_i);
 		test_word_rd();
 		test_word_wr();
 		test_dword_rd();
+		test_dword_wr();
 
 		$display("@I Done.");
 		$stop;
