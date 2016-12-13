@@ -1,0 +1,87 @@
+[
+ [module BottleneckSequencer
+  &input  [
+           ResetI MCycI MStbI MSiz1 MSiz0 MAdrI0 MAdrI1 MAdrI2 ack1 ack2 ack3 SAckI
+          ]
+  &output [
+           ack1_o ack2_o ack3_o Hold1_SDatI Hold2_SDatI Hold3_SDatI MAckO_1
+           MAckO_SAckI MDatO_SDatI MErrAlignO_1 SAdrO_MAdrI plus2
+           plus4 plus6 SDatO_MDatI SDatO_MDatI31_16 SDatO_MDatI47_32
+           SDatO_MDatI63_48 SSignedO_MSignedI SSizO_1 SSizO_MSizI0 SStbO_1
+           SStbO_MStbI SWeO_MWeI
+          ]
+  &wire   [
+           aligned
+          ]
+ ]
+
+\\ Unaligned Accesses
+
+ [on [~ResetI MCycI MStbI ~aligned]
+	MErrAlignO_1]
+
+\\ 8-bit I/O
+
+ [on [~ResetI MCycI MStbI ~MSiz1 ~MSiz0]
+	SAdrO_MAdrI SDatO_MDatI SSignedO_MSignedI SSizO_MSizI0
+	SStbO_MStbI SWeO_MWeI MAckO_SAckI MDatO_SDatI aligned]
+
+\\ 16-bit I/O
+
+ [on [~ResetI MCycI MStbI ~MSiz1 MSiz0 ~MAdrI0]	
+	SAdrO_MAdrI SDatO_MDatI SSignedO_MSignedI SSizO_MSizI0
+	SStbO_MStbI SWeO_MWeI MAckO_SAckI MDatO_SDatI aligned]
+
+\\ 32-bit I/O
+
+ [on [~ResetI MCycI MStbI MSiz1 ~MSiz0 ~MAdrI1 ~MAdrI0 ~ack1]
+	SAdrO_MAdrI plus2 SDatO_MDatI31_16 SSignedO_MSignedI
+	SSizO_1 SStbO_1 SWeO_MWeI Hold1_SDatI aligned]
+
+ [on [~ResetI MCycI MStbI MSiz1 ~MSiz0 ~MAdrI1 ~MAdrI0 ~ack1 SAckI]
+	ack1_o aligned]
+
+ [on [~ResetI MCycI MStbI MSiz1 ~MSiz0 ~MAdrI1 ~MAdrI0 ack1]
+	SAdrO_MAdrI SDatO_MDatI SSignedO_MSignedI
+	SSizO_1 SStbO_1 SWeO_MWeI MDatO_SDatI aligned]
+
+ [on [~ResetI MCycI MStbI MSiz1 ~MSiz0 ~MAdrI1 ~MAdrI0 ack1 ~SAckI]
+	ack1_o]
+
+ [on [~ResetI MCycI MStbI MSiz1 ~MSiz0 ~MAdrI1 ~MAdrI0 ack1 SAckI]
+	MAckO_1]
+
+\\ 64-bit I/O
+
+ [on [~ResetI MCycI MStbI MSiz1 MSiz0 ~MAdrI2 ~MAdrI1 ~MAdrI0 ~ack1 ~ack2 ~ack3]
+	SAdrO_MAdrI plus6 SDatO_MDatI63_48 SSignedO_MSignedI
+	SSizO_1 SStbO_1 SWeO_MWeI Hold3_SDatI aligned]
+
+ [on [~ResetI MCycI MStbI MSiz1 MSiz0 ~MAdrI2 ~MAdrI1 ~MAdrI0 ~ack1 ~ack2 ~ack3 SAckI]
+	ack3_o]
+
+ [on [~ResetI MCycI MStbI MSiz1 MSiz0 ~MAdrI2 ~MAdrI1 ~MAdrI0 ~ack1 ~ack2 ack3]
+	SAdrO_MAdrI plus4 SDatO_MDatI47_32 SSignedO_MSignedI
+	SSizO_1 SStbO_1 SWeO_MWeI Hold2_SDatI aligned ack3_o]
+
+ [on [~ResetI MCycI MStbI MSiz1 MSiz0 ~MAdrI2 ~MAdrI1 ~MAdrI0 ~ack1 ~ack2 ack3 SAckI]
+	ack2_o ack3_o]
+
+ [on [~ResetI MCycI MStbI MSiz1 MSiz0 ~MAdrI2 ~MAdrI1 ~MAdrI0 ~ack1 ack2 ack3]
+	SAdrO_MAdrI plus2 SDatO_MDatI31_16 SSignedO_MSignedI
+	SSizO_1 SStbO_1 SWeO_MWeI Hold1_SDatI aligned ack2_o ack3_o]
+
+ [on [~ResetI MCycI MStbI MSiz1 MSiz0 ~MAdrI2 ~MAdrI1 ~MAdrI0 ~ack1 ack2 ack3 SAckI]
+	ack1_o ack2_o ack3_o]
+
+ [on [~ResetI MCycI MStbI MSiz1 MSiz0 ~MAdrI2 ~MAdrI1 ~MAdrI0 ack1 ack2 ack3]
+	SAdrO_MAdrI SDatO_MDatI SSignedO_MSignedI
+	SSizO_1 SStbO_1 SWeO_MWeI MDatO_SDatI aligned]
+
+ [on [~ResetI MCycI MStbI MSiz1 MSiz0 ~MAdrI2 ~MAdrI1 ~MAdrI0 ack1 ack2 ack3 ~SAckI]
+	ack1_o ack2_o ack3_o]
+
+ [on [~ResetI MCycI MStbI MSiz1 MSiz0 ~MAdrI2 ~MAdrI1 ~MAdrI0 ack1 ack2 ack3 SAckI]
+	MAckO_1]
+]
+
