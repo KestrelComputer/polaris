@@ -13,10 +13,10 @@ The following cores exist so far in this repository:
 
 |ID|Subdirectory|Description|Datasheet?|
 |:-:|:-:|:--|:-:|
-|KCP53000|processor|64-bit processor built on the RISC-V 64-bit integer instruction set.|[Yes](processor/docs/SUMMARY.md)|
-|KCP53001|arbiter|64-bit Furcula interconnect arbiter.|Not yet (note 1)|
-|KCP53002|wb-bridge|64-bit Wishbone interconnect bridge.|Not yet (note 1)|
-|KCP53003|bottleneck|64-bit to 16-bit Furcula bridge.|Not yet|
+|KCP53000|[processor](processor)|64-bit processor built on the RISC-V 64-bit integer instruction set.|[Yes](processor/docs/SUMMARY.md)|
+|KCP53001|[arbiter](arbiter)|64-bit Furcula interconnect arbiter.|Not yet (note 1)|
+|KCP53002|[wb-bridge](wb-bridge)|64-bit Wishbone interconnect bridge.|Not yet (note 1)|
+|KCP53003|[bottleneck](bottleneck)|64-bit to 16-bit Furcula bridge.|Not yet|
 
 **Notes**
 
